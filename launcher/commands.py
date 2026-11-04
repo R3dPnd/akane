@@ -12,7 +12,7 @@ import time
 import webbrowser
 from collections.abc import Callable
 
-from launcher import discovery, paths, processes, readiness
+from launcher import discovery, paths, preflight, processes, readiness
 from launcher.supervisor import Supervisor
 
 API_STARTUP_TIMEOUT = 30.0
@@ -66,6 +66,8 @@ def cmd_dev(voice: bool = False) -> int:
     """API + Vite dev server. Opens a browser tab — or, with `voice`, a
     fullscreen Electron window, since running Akane for real should feel like
     an app rather than a dev-server tab."""
+    if not preflight.run(voice, ui=True):
+        return 1
     supervisor = Supervisor()
     supervisor.install_signal_handlers()
     if not _start_api_and_wait(supervisor, voice):
@@ -85,6 +87,8 @@ def cmd_dev(voice: bool = False) -> int:
 
 def cmd_electron(voice: bool = False) -> int:
     """API + the UI's `electron:dev` script (Vite with hot reload, inside Electron)."""
+    if not preflight.run(voice, ui=True):
+        return 1
     supervisor = Supervisor()
     supervisor.install_signal_handlers()
     if not _start_api_and_wait(supervisor, voice):
@@ -102,6 +106,8 @@ def cmd_electron(voice: bool = False) -> int:
 
 def cmd_start() -> int:
     """API only, voice enabled, writing straight to this terminal."""
+    if not preflight.run(True, ui=False):
+        return 1
     supervisor = Supervisor()
     supervisor.install_signal_handlers()
     supervisor.add(processes.spawn_api(voice=True, capture_output=False))

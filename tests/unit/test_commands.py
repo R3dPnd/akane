@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from launcher import commands, discovery, paths, processes, readiness
+from launcher import commands, discovery, paths, preflight, processes, readiness
 from launcher.supervisor import Supervisor
 
 
@@ -39,6 +39,8 @@ def harness(monkeypatch, fake_process_factory):
         ui_ready = True
         spawned: list[tuple] = []
         opened_urls: list[str] = []
+        preflight_ok = True
+        preflight_calls: list[tuple] = []
 
         @property
         def supervisor(self) -> _TestSupervisor:
@@ -71,6 +73,7 @@ def harness(monkeypatch, fake_process_factory):
     monkeypatch.setattr(commands.webbrowser, "open", h.opened_urls.append)
     monkeypatch.setattr(commands, "Supervisor", _TestSupervisor)
     monkeypatch.setattr(commands, "run_in_background", lambda fn, *args: fn(*args))
+    monkeypatch.setattr(preflight, "run", lambda voice, ui: h.preflight_calls.append((voice, ui)) or h.preflight_ok)
     return h
 
 
@@ -207,3 +210,26 @@ class TestCmdRestart:
         assert commands.cmd_restart(relaunch=self._relaunch(restart_harness)) == 0
         assert restart_harness["stopped"] == 1
         assert restart_harness["relaunched"] == ["dev", "--voice"]
+
+
+class TestPreflight:
+    @pytest.mark.parametrize("run, expected_call", [
+        (lambda: commands.cmd_dev(voice=True), (True, True)),
+        (lambda: commands.cmd_electron(voice=False), (False, True)),
+        (lambda: commands.cmd_start(), (True, False)),
+    ])
+    def test_each_launch_runs_preflight_first(self, harness, run, expected_call):
+        harness.preflight_calls.clear()
+        run()
+        assert harness.preflight_calls == [expected_call]
+
+    @pytest.mark.parametrize("run", [
+        lambda: commands.cmd_dev(voice=True),
+        lambda: commands.cmd_electron(voice=True),
+        lambda: commands.cmd_start(),
+    ])
+    def test_a_preflight_error_stops_before_spawning_anything(self, harness, run):
+        harness.preflight_ok = False
+        harness.spawned.clear()
+        assert run() == 1
+        assert harness.spawned == []
