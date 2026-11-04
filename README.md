@@ -23,6 +23,9 @@ Akane replaces Dann of Thursday and runs on the same shared runtime,
 | "remind me to call the dentist tomorrow" | saves a reminder in `~/.akane` |
 | "what do my notes say about …" | searches your pnd-notes (read-only) |
 
+Type in the dashboard's chat instead of talking, and Akane still reads her
+replies aloud (with `akane dev --voice`; replies wait if she's mid-conversation).
+
 Coming next (see `docs/superpowers/specs/2026-10-26-akane-design.md` §9):
 
 - **3:** a notebook of topics and Claude research/plan jobs, plus a spoken "yes" before anything risky
