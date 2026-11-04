@@ -312,8 +312,9 @@ with its path set in `config.local.yaml` (machine-specific). Tools:
 ### 6.5 Models: Ollama backbone + Claude
 
 - **Ollama (local)** routes every turn and answers simple ones. Default on the
-  current machine: the existing qwen2.5:7b-based router, rebuilt as
-  `akane-router` with Akane's prompt. Configurable per machine in
+  current machine: `akane-router` built on **qwen3:8b** at temperature 0.1
+  (user decision 2026-11-04: qwen2.5:7b skipped tool calls and claimed it had
+  acted; qwen3:8b called the right tool 28/28 at ~7 s per tool turn). Configurable per machine in
   `config.local.yaml`; the bigger Mac can run a larger model (e.g. a 14B/32B
   class model) without code change.
 - **Claude (via `claude` CLI, subscription)** handles deep reasoning, build
