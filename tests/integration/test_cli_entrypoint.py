@@ -40,3 +40,13 @@ def test_unknown_command_fails_with_a_usage_error(python_exe, tmp_path):
     result = _run(python_exe, "bogus", cwd=tmp_path)
     assert result.returncode == 2
     assert "invalid choice: 'bogus'" in result.stderr
+
+
+def test_installed_symlink_runs_under_the_venv_from_a_foreign_python(tmp_path):
+    """`akane` is a symlink in ~/.local/bin to akane.py, run by whatever
+    python3 is on PATH — which may lack psutil/yaml. It must still work."""
+    link = tmp_path / "akane"
+    link.symlink_to(REPO_ROOT / "akane.py")
+    result = subprocess.run(["/usr/bin/python3", str(link), "--help"], capture_output=True, text=True, timeout=60)
+    assert result.returncode == 0, result.stderr
+    assert "akane" in result.stdout

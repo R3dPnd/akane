@@ -40,7 +40,7 @@ cd akane
 scripts/setup.sh
 ```
 
-Setup makes the venv, installs the UI, pulls the base model and builds
+Setup makes the venv, puts an `akane` command in `~/.local/bin`, installs the UI, pulls the base model and builds
 `akane-router`, downloads the Piper voices, and creates `~/.akane` and
 `config.local.yaml`. For the wake word, copy `models/ok_akane.onnx` from the old
 machine, or run `scripts/train_wakeword.sh` (10–20 min). On a more powerful Mac,
@@ -49,8 +49,8 @@ put a bigger model or Whisper size in `config.local.yaml`; no code changes.
 ## Running
 
 ```bash
-.venv/bin/python akane.py dev --voice   # everything, in an Electron window
-.venv/bin/python akane.py stop
+akane dev --voice   # everything, in an Electron window
+akane stop
 ```
 
 If something's missing (a model, a busy port because Dann is still running),

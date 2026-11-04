@@ -17,8 +17,18 @@ command lines.
 """
 
 import sys
+from pathlib import Path
 
-from launcher.cli import main
+# Make the launcher importable however this file is invoked (directly, or via
+# the ~/.local/bin/akane symlink).
+REPO_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(REPO_ROOT))
+
+from launcher.venv import ensure_venv  # noqa: E402  (stdlib only)
 
 if __name__ == "__main__":
+    ensure_venv(sys.argv[1:], script=REPO_ROOT / "akane.py")
+
+    from launcher.cli import main
+
     sys.exit(main(sys.argv[1:]))

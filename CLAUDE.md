@@ -12,9 +12,9 @@ Design: `docs/superpowers/specs/2026-10-26-akane-design.md`. Phase plans:
 
 ```bash
 scripts/setup.sh                      # fresh-Mac setup; re-runnable
-.venv/bin/python akane.py dev --voice # API + UI + voice, Electron window
-.venv/bin/python akane.py dev         # API + UI, no voice, browser tab
-.venv/bin/python akane.py stop        # stop every Akane process (never Dann's)
+akane dev --voice                     # API + UI + voice, Electron window
+akane dev                             # API + UI, no voice, browser tab
+akane stop                            # stop every Akane process (never Dann's)
 .venv/bin/pytest tests --cov=launcher # keep launcher coverage ≥95%
 scripts/build_router.sh               # rebuild akane-router after editing its Modelfile
 scripts/train_wakeword.sh             # retrain models/ok_akane.onnx
@@ -36,6 +36,10 @@ scripts/train_wakeword.sh             # retrain models/ok_akane.onnx
 - Don't edit `runtime/` from here. A runtime change is a pnd-mcp commit, then a
   submodule bump.
 - Never write to `~/.dann`, `dann-of-thursday`, or `pnd-notes` (read-only).
+- `akane` is a symlink, `~/.local/bin/akane` → `akane.py` (made by setup.sh).
+  `akane.py` re-executes itself under `.venv/bin/python` (`launcher/venv.py`),
+  so it works whatever `python3` is first on PATH. Keep `launcher/venv.py`
+  stdlib-only.
 - Preflight (`launcher/preflight.py`) runs before every launch. Add a check
   there when a new model or sibling repo becomes required.
 

@@ -53,6 +53,14 @@ fi
 say "Machine-local config"
 [ -f config.local.yaml ] || cp config.local.example.yaml config.local.yaml
 
+say "The akane command (~/.local/bin/akane)"
+mkdir -p "$HOME/.local/bin"
+ln -sf "$REPO/akane.py" "$HOME/.local/bin/akane"
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) warn "Add ~/.local/bin to your PATH: echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.zshrc" ;;
+esac
+
 say "Data directory"
 mkdir -p "$HOME/.akane"
 
@@ -60,4 +68,4 @@ if [ ! -f models/ok_akane.onnx ]; then
   warn "models/ok_akane.onnx missing — copy it from your old machine, or run scripts/train_wakeword.sh"
 fi
 
-say "Done. Start with: .venv/bin/python akane.py dev --voice   (in $REPO)"
+say "Done. Start with: akane dev --voice"

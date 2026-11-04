@@ -73,3 +73,8 @@ def test_train_wakeword_writes_ok_akane():
     assert "wakeword/phrases.yaml" in text
     assert "models/ok_akane.onnx" in text
     assert "record_wakeword_samples.py" in text
+
+
+def test_setup_installs_the_akane_command():
+    text = (REPO_ROOT / "scripts" / "setup.sh").read_text()
+    assert 'ln -sf "$REPO/akane.py" "$HOME/.local/bin/akane"' in text
