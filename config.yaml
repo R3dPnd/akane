@@ -64,7 +64,9 @@ ollama:
       When you saved something, say so and where ("saved that as a reminder").
     - Never call the same tool twice in one turn.
     - You can't add calendar events yet; if asked, say that's coming soon.
-  temperature: 0.7
+  # Low on purpose: at 0.7 the 7B router often skipped the tool call and still
+  # said it had acted ("I've set a reminder"). 0.1 measured far more reliable.
+  temperature: 0.1
   max_tokens: 80
   keep_alive: 30m   # keep the router resident between wake words
 

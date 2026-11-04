@@ -179,3 +179,10 @@ def test_node_servers_resolve_relative_to_runtime(config):
 def test_local_overlay_example_only_has_comments():
     assert LOCAL_EXAMPLE.is_file()
     assert yaml.safe_load(LOCAL_EXAMPLE.read_text()) is None
+
+
+def test_router_temperature_is_low_enough_for_reliable_tool_calls(config):
+    # Measured live (Phase 2): at 0.7 qwen2.5:7b skipped add_reminder 2 times
+    # in 3 and web_search 2 in 3 — and still claimed it had acted. At 0.1:
+    # reminders 9/12, web lookups 4/4.
+    assert config["ollama"]["temperature"] <= 0.2
