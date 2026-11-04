@@ -12,7 +12,7 @@ import time
 
 import pytest
 
-from launcher import commands, paths
+from launcher import commands, paths, preflight
 from launcher.supervisor import Supervisor
 
 from .conftest import is_running, posix_only
@@ -73,6 +73,12 @@ def fake_runtime(monkeypatch, tmp_path, make_script, free_port):
     monkeypatch.setattr(paths, "VENV_UVICORN", make_script("uvicorn", FAKE_UVICORN))
     monkeypatch.setattr(paths, "API_PORT", api_port)
     monkeypatch.setattr(paths, "UI_PORT", ui_port)
+    # A config with no model paths, so preflight checks only the (free) ports
+    # rather than whether this machine has Akane's voice models installed.
+    empty_config = tmp_path / "config.yaml"
+    empty_config.write_text("{}\n")
+    monkeypatch.setattr(paths, "CONFIG_PATH", empty_config)
+    monkeypatch.setattr(preflight, "ollama_models", lambda: [])
     monkeypatch.setattr(paths, "node_tool", lambda name: str(fake_npm) if name == "npm" else name)
     monkeypatch.setenv("FAKE_RECORD", str(record))
     monkeypatch.setenv("FAKE_UI_PORT", str(ui_port))

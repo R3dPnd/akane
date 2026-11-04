@@ -1,0 +1,25 @@
+# Machine-specific overrides — copy to config.local.yaml (gitignored) and
+# uncomment what this machine needs. It's merged over config.yaml at load
+# time: nested mappings merge key by key, but a list here REPLACES the whole
+# list in config.yaml (so overriding mcp.servers means copying all of it).
+
+# A bigger Mac can run a bigger router. Build it from a Modelfile that names
+# a larger base (FROM qwen2.5:14b-instruct, say) under a new name:
+# ollama:
+#   model: akane-router-14b
+
+# Larger Whisper models transcribe better and need more memory:
+# stt:
+#   model_size: medium        # or large-v3-turbo
+
+# Specific mic/speaker (names or indices from `python -m sounddevice`):
+# audio:
+#   input_device: "MacBook Pro Microphone"
+#   output_device: null
+
+# pnd-notes cloned somewhere other than next to akane: each mcp server's
+# `env:` mapping is passed to it, and pnd-notes reads PND_NOTES_DIR. Because
+# lists replace, copy the whole mcp.servers list from config.yaml and add to
+# the pnd_notes entry:
+#       env:
+#         PND_NOTES_DIR: /path/to/pnd-notes/notes
