@@ -1,0 +1,25 @@
+# "ok Akane" wake-word phrases, read by runtime/scripts/wakeword (see
+# wakeword_args.py). Phrases go to Piper exactly as written, so the wake word
+# is spelled the way it's said: uh-KANE.
+positive:
+  - okay uh-kane
+  - ok uh-kane
+  - okay a-kane
+  - ok akane
+  - okay akane
+  - ok uh kane
+
+# Near-misses and other assistants' wake words, so they *don't* wake Akane.
+adversarial:
+  - okay cane
+  - ok jane
+  - okay again
+  - ok a game
+  - okay Dann
+  - hey Kane
+  - ok come in
+  - okay okay
+  - ok google
+  - hey jarvis
+  - alexa
+  - ok thanks

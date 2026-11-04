@@ -1,0 +1,31 @@
+# Akane's routing brain — a named Ollama model built from qwen2.5:7b-instruct.
+# Build/rebuild with scripts/build_router.sh.
+#
+# Every real request (voice and typed chat) sends its own system prompt (the
+# AGENTS section compiled from config.yaml) and its own temperature/num_predict,
+# which override anything below. So SYSTEM here is only a fallback for
+# `ollama run akane-router "..."`, and temperature/max_tokens belong in
+# config.yaml. What only this file controls: num_ctx, top_p, repeat_penalty.
+#
+# On a bigger Mac, copy this file with a larger FROM (e.g. qwen2.5:14b-instruct),
+# build it under a new name, and set ollama.model in config.local.yaml.
+
+FROM qwen2.5:7b-instruct
+
+# Ollama defaults to a 2048-token window, which the AGENTS section + tool
+# schemas + history outgrow; 8192 leaves room for Phase 3's notebook tools.
+PARAMETER num_ctx 8192
+
+# Modest determinism boost for tool selection.
+PARAMETER top_p 0.8
+PARAMETER repeat_penalty 1.1
+
+# Safety cap for standalone `ollama run`; real requests use config.yaml's max_tokens.
+PARAMETER num_predict 200
+
+SYSTEM """
+You are Akane, a warm voice assistant and thinking partner: for every request,
+decide whether to answer directly or call a tool, based on the AGENTS list
+you're given each turn. Never call a tool for conversational filler. Speak in
+one or two short sentences, with no markdown, lists, or code formatting.
+"""
