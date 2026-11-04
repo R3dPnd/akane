@@ -20,7 +20,7 @@ say "Dashboard UI dependencies"
 
 say "Ollama and the akane-router model"
 if command -v ollama >/dev/null; then
-  ollama pull qwen2.5:7b-instruct
+  ollama pull qwen3:8b
   scripts/build_router.sh
 else
   warn "ollama not installed — brew install ollama, then re-run this script."

@@ -1,4 +1,6 @@
-# Akane's routing brain — a named Ollama model built from qwen2.5:7b-instruct.
+# Akane's routing brain — a named Ollama model built from qwen3:8b, chosen
+# over qwen2.5:7b, which often skipped tool calls and claimed it had acted.
+# (The runtime sends think: false, so qwen3's thinking pass is off.)
 # Build/rebuild with scripts/build_router.sh.
 #
 # Every real request (voice and typed chat) sends its own system prompt (the
@@ -7,10 +9,10 @@
 # `ollama run akane-router "..."`, and temperature/max_tokens belong in
 # config.yaml. What only this file controls: num_ctx, top_p, repeat_penalty.
 #
-# On a bigger Mac, copy this file with a larger FROM (e.g. qwen2.5:14b-instruct),
+# On a bigger Mac, copy this file with a larger FROM (e.g. qwen3:14b),
 # build it under a new name, and set ollama.model in config.local.yaml.
 
-FROM qwen2.5:7b-instruct
+FROM qwen3:8b
 
 # Ollama defaults to a 2048-token window, which the AGENTS section + tool
 # schemas + history outgrow; 8192 leaves room for Phase 3's notebook tools.

@@ -42,7 +42,9 @@ def test_wake_phrases_are_uh_kane_and_disjoint():
 
 def test_router_modelfile():
     text = (REPO_ROOT / "models" / "akane-router.Modelfile").read_text()
-    assert "FROM qwen2.5:7b-instruct" in text
+    # qwen3:8b, chosen by the user after qwen2.5:7b proved unreliable at
+    # calling tools (it would claim "I've set a reminder" without calling one).
+    assert "FROM qwen3:8b" in text
     assert "PARAMETER num_ctx 8192" in text
     assert "Akane" in text
 
@@ -57,6 +59,7 @@ def test_setup_downloads_alba_and_never_uses_an_api_key():
     assert ALBA_URL in text
     assert "en_GB-alba-medium" in text
     assert "ANTHROPIC" not in text
+    assert "ollama pull qwen3:8b" in text
 
 
 def test_build_router_uses_the_runtime_script_and_akane_modelfile():

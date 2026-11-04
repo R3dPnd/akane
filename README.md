@@ -4,7 +4,7 @@ A local voice assistant and thinking partner for macOS. Say **"ok Akane"**
 (*uh-KANE*). Akane answers in a warm Scottish voice (Piper `en_GB-alba-medium`).
 
 - **Quick replies** come from a local model (`akane-router`, built on
-  qwen2.5:7b), so a live turn never waits on the cloud.
+  qwen3:8b), so a live turn never waits on the cloud.
 - **Claude is the heavy thinker.** Web lookups now; later, research, action
   plans and "think harder" run as background jobs that Akane announces when
   they're done. All of it goes through the `claude` CLI on your subscription,

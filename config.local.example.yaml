@@ -4,7 +4,7 @@
 # list in config.yaml (so overriding mcp.servers means copying all of it).
 
 # A bigger Mac can run a bigger router. Build it from a Modelfile that names
-# a larger base (FROM qwen2.5:14b-instruct, say) under a new name:
+# a larger base (FROM qwen3:14b, say) under a new name:
 # ollama:
 #   model: akane-router-14b
 
