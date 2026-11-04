@@ -9,7 +9,7 @@ from launcher import commands
 DESCRIPTION = "Developer tooling for Akane: run, stop, and restart Akane."
 
 EPILOG = """\
-Saying "goodbye"/"thanks Akane" to the voice pipeline only ends the current
+Saying "goodbye" or "thanks Akane" only ends the current
 conversation, not the process — use `stop` or Ctrl+C to actually stop Akane.
 `restart` is also available as the dashboard restart button, or by saying
 "restart yourself"/"restart Akane". Restarts are always human-triggered."""
@@ -37,16 +37,16 @@ def build_parser() -> argparse.ArgumentParser:
     dev = subparsers.add_parser(
         "dev",
         aliases=["code"],
-        help="API + UI dev servers (NO_VOICE=1); opens a browser tab",
+        help="dashboard in a browser tab, text only (add --voice or --speak)",
     )
-    _add_voice_flags(dev, voice_help="enable the voice pipeline and open a fullscreen Electron window instead")
+    _add_voice_flags(dev, voice_help="listen for the wake word and speak; opens a fullscreen Electron window")
     dev.set_defaults(run=lambda args: commands.cmd_dev(voice=args.voice, speak=args.speak))
 
-    electron = subparsers.add_parser("electron", help="API + Electron dev window (NO_VOICE=1)")
-    _add_voice_flags(electron, voice_help="enable the voice pipeline")
+    electron = subparsers.add_parser("electron", help="dashboard in an Electron window with hot reload (add --voice or --speak)")
+    _add_voice_flags(electron, voice_help="listen for the wake word and speak")
     electron.set_defaults(run=lambda args: commands.cmd_electron(voice=args.voice, speak=args.speak))
 
-    start = subparsers.add_parser("start", help="API only, with the voice pipeline enabled")
+    start = subparsers.add_parser("start", help="voice only, no dashboard UI (API + listening voice pipeline)")
     start.set_defaults(run=lambda args: commands.cmd_start())
 
     stop = subparsers.add_parser(
