@@ -186,3 +186,14 @@ def test_router_temperature_is_low_enough_for_reliable_tool_calls(config):
     # in 3 and web_search 2 in 3 — and still claimed it had acted. At 0.1:
     # reminders 9/12, web lookups 4/4.
     assert config["ollama"]["temperature"] <= 0.2
+
+
+def test_typed_replies_are_spoken(config):
+    # The user wants Akane to read her replies aloud while they type.
+    assert config["ux"]["speak_typed_replies"] is True
+
+
+def test_runtime_supports_speaking_typed_replies(runtime_on_path):
+    from voice.orchestrator import Orchestrator
+
+    assert hasattr(Orchestrator, "_speak_queued")

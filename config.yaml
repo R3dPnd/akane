@@ -270,3 +270,6 @@ mcp:
 ux:
   play_listening_sound: true
   play_thinking_sound: false
+  # Read replies to typed chat aloud too (needs `akane dev --voice`). They
+  # wait until Akane is idle, so they never talk over a spoken conversation.
+  speak_typed_replies: true
