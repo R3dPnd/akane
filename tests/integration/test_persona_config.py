@@ -202,3 +202,14 @@ def test_runtime_supports_speaking_typed_replies(runtime_on_path):
 
 def test_runtime_ui_has_the_rose_theme():
     assert '[data-theme="rose"]' in (RUNTIME_DIR / "ui" / "src" / "theme.css").read_text()
+
+
+def test_local_example_documents_the_user_block():
+    text = LOCAL_EXAMPLE.read_text()
+    assert "# user:" in text and "location:" in text
+
+
+def test_runtime_folds_the_user_block_into_prompts(runtime_on_path):
+    from shared.user_context import build_user_prompt
+
+    assert "Tacoma, WA" in build_user_prompt({"location": "Tacoma, WA"})

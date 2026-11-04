@@ -23,3 +23,8 @@
 # the pnd_notes entry:
 #       env:
 #         PND_NOTES_DIR: /path/to/pnd-notes/notes
+
+# Facts about you that Akane should always know. Personal, so they live here
+# rather than in config.yaml. Location lets "near me" questions skip asking.
+# user:
+#   location: Tacoma, WA
