@@ -23,6 +23,9 @@ def runtime(tmp_path, monkeypatch):
     (models / "piper").mkdir(parents=True)
     (models / "ok_akane.onnx").write_bytes(b"")
     (models / "piper" / "en_GB-alba-medium.onnx").write_bytes(b"")
+    electron = rt / "ui" / "node_modules" / "electron"
+    electron.mkdir(parents=True)
+    (electron / "path.txt").write_text("Electron.app/Contents/MacOS/Electron")
     notes = tmp_path / "pnd-notes" / "server"
     notes.mkdir(parents=True)
     (notes / "pnd-notes.mjs").write_text("")
@@ -42,10 +45,11 @@ def _config():
     }
 
 
-def _check(config=None, voice=True, busy=(), models=("akane-router:latest",), speak=False):
+def _check(config=None, voice=True, busy=(), models=("akane-router:latest",), speak=False, electron=False):
     return preflight.check(
         voice,
         speak=speak,
+        electron=electron,
         config=_config() if config is None else config,
         ports=[API, UI],
         port_in_use=lambda port: port in busy,
@@ -132,6 +136,19 @@ def test_speak_mode_needs_the_voice_but_not_the_wake_model(runtime):
     assert "en_GB-alba-medium" in problem.message
 
 
+def test_working_electron_passes(runtime):
+    assert _check(electron=True) == []
+
+
+def test_broken_electron_is_an_error_when_a_window_is_needed(runtime):
+    (runtime / "ui" / "node_modules" / "electron" / "path.txt").unlink()
+    assert _check(electron=False) == []
+    (problem,) = _check(electron=True)
+    assert problem.level == "error"
+    assert "Electron" in problem.message
+    assert "scripts/fix_electron.sh" in problem.fix
+
+
 class TestRealProbes:
     def test_port_in_use_sees_a_bound_socket(self):
         with socket.socket() as s:
@@ -162,7 +179,7 @@ class TestRun:
     def test_run_checks_both_ports_for_dev(self, monkeypatch):
         seen = {}
 
-        def fake_check(voice, *, speak, config, ports, port_in_use, ollama_models):
+        def fake_check(voice, *, speak, electron, config, ports, port_in_use, ollama_models):
             seen.update(voice=voice, ports=ports)
             return []
 
@@ -184,6 +201,13 @@ class TestRun:
         monkeypatch.setattr(preflight, "_load_config", lambda: {})
         preflight.run(voice=False, ui=True, speak=True)
         assert seen["speak"] is True
+
+    def test_run_passes_electron_to_check(self, monkeypatch):
+        seen = {}
+        monkeypatch.setattr(preflight, "check", lambda voice, **kw: seen.update(kw) or [])
+        monkeypatch.setattr(preflight, "_load_config", lambda: {})
+        preflight.run(voice=True, ui=True, electron=True)
+        assert seen["electron"] is True
 
     def test_run_fails_on_an_error(self, monkeypatch, capsys):
         monkeypatch.setattr(preflight, "check", lambda voice, **kw: [preflight.Problem("error", "x", "y")])

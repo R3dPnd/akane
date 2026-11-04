@@ -70,10 +70,18 @@ def _check_node_servers(config: dict[str, Any]) -> list[Problem]:
     return problems
 
 
+def _check_electron() -> list[Problem]:
+    if (paths.RUNTIME_DIR / "ui" / "node_modules" / "electron" / "path.txt").is_file():
+        return []
+    return [Problem("error", "Electron isn't installed correctly, so the app window can't open",
+                    "run scripts/fix_electron.sh")]
+
+
 def check(
     voice: bool,
     *,
     speak: bool = False,
+    electron: bool = False,
     config: dict[str, Any],
     ports: list[int],
     port_in_use: Callable[[int], bool],
@@ -89,6 +97,8 @@ def check(
         problems += _check_wake_model(config)
     if voice or speak:
         problems += _check_voice_model(config)
+    if electron:
+        problems += _check_electron()
     problems += _check_router(config, ollama_models()) + _check_node_servers(config)
     return problems
 
@@ -128,9 +138,9 @@ def _load_config() -> dict[str, Any]:
     return load_config(paths.CONFIG_PATH)
 
 
-def run(voice: bool, ui: bool, speak: bool = False) -> bool:
+def run(voice: bool, ui: bool, speak: bool = False, electron: bool = False) -> bool:
     """Check this machine with the real probes and report; False means don't start."""
     ports = [paths.API_PORT, paths.UI_PORT] if ui else [paths.API_PORT]
-    problems = check(voice, speak=speak, config=_load_config(), ports=ports,
+    problems = check(voice, speak=speak, electron=electron, config=_load_config(), ports=ports,
                      port_in_use=port_in_use, ollama_models=ollama_models)
     return report(problems)

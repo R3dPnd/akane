@@ -17,6 +17,7 @@ say "Python venv"
 
 say "Dashboard UI dependencies"
 [ -d runtime/ui/node_modules ] || (cd runtime/ui && npm ci --silent)
+scripts/fix_electron.sh   # npm's Electron install silently breaks on Node 26
 
 say "Ollama and the akane-router model"
 if command -v ollama >/dev/null; then

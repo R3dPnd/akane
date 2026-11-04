@@ -9,7 +9,7 @@ import pytest
 
 from launcher.paths import REPO_ROOT, RUNTIME_DIR
 
-SCRIPTS = ["setup.sh", "build_router.sh", "train_wakeword.sh"]
+SCRIPTS = ["setup.sh", "build_router.sh", "train_wakeword.sh", "fix_electron.sh"]
 ALBA_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alba/medium/"
 
 
@@ -78,3 +78,8 @@ def test_train_wakeword_writes_ok_akane():
 def test_setup_installs_the_akane_command():
     text = (REPO_ROOT / "scripts" / "setup.sh").read_text()
     assert 'ln -sf "$REPO/akane.py" "$HOME/.local/bin/akane"' in text
+
+
+def test_setup_repairs_electron_after_installing_the_ui():
+    text = (REPO_ROOT / "scripts" / "setup.sh").read_text()
+    assert text.index("npm ci") < text.index("scripts/fix_electron.sh")

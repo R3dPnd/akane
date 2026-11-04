@@ -19,6 +19,7 @@ akane stop                            # stop every Akane process (never Dann's)
 .venv/bin/pytest tests --cov=launcher # keep launcher coverage ≥95%
 scripts/build_router.sh               # rebuild akane-router after editing its Modelfile
 scripts/train_wakeword.sh             # retrain models/ok_akane.onnx
+scripts/fix_electron.sh               # repair Electron when npm left it half-installed (Node 26)
 ```
 
 ## Rules that aren't obvious from the code

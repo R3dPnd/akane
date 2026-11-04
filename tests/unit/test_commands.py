@@ -74,7 +74,8 @@ def harness(monkeypatch, fake_process_factory):
     monkeypatch.setattr(commands, "Supervisor", _TestSupervisor)
     monkeypatch.setattr(commands, "run_in_background", lambda fn, *args: fn(*args))
     monkeypatch.setattr(preflight, "run",
-                        lambda voice, ui, speak=False: h.preflight_calls.append((voice, ui) + (("speak",) if speak else ())) or h.preflight_ok)
+                        lambda voice, ui, speak=False, electron=False: h.preflight_calls.append(
+                            (voice, ui) + (("speak",) if speak else ()) + (("electron",) if electron else ())) or h.preflight_ok)
     return h
 
 
@@ -215,8 +216,9 @@ class TestCmdRestart:
 
 class TestPreflight:
     @pytest.mark.parametrize("run, expected_call", [
-        (lambda: commands.cmd_dev(voice=True), (True, True)),
-        (lambda: commands.cmd_electron(voice=False), (False, True)),
+        (lambda: commands.cmd_dev(voice=True), (True, True, "electron")),
+        (lambda: commands.cmd_dev(voice=False), (False, True)),
+        (lambda: commands.cmd_electron(voice=False), (False, True, "electron")),
         (lambda: commands.cmd_start(), (True, False)),
     ])
     def test_each_launch_runs_preflight_first(self, harness, run, expected_call):
@@ -242,7 +244,7 @@ class TestSpeakMode:
         harness.preflight_calls.clear()
         assert commands.cmd_dev(speak=True) == 0
         assert harness.spawned == [("api", False, True, "speak"), ("npm", "dev")]
-        assert harness.preflight_calls == [(False, True, "speak")]
+        assert harness.preflight_calls == [(False, True, "speak")]  # browser tab, no Electron
         assert harness.opened_urls[-1] == paths.ui_url(paths.UI_PORT)
 
     def test_electron_speak_runs_speak_only_api(self, harness):

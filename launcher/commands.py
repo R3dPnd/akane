@@ -72,7 +72,7 @@ def cmd_dev(voice: bool = False, speak: bool = False) -> int:
     """API + Vite dev server. Opens a browser tab — or, with `voice`, a
     fullscreen Electron window, since running Akane for real should feel like
     an app rather than a dev-server tab."""
-    if not preflight.run(voice, ui=True, speak=speak):
+    if not preflight.run(voice, ui=True, speak=speak, electron=voice):
         return 1
     supervisor = Supervisor()
     supervisor.install_signal_handlers()
@@ -93,7 +93,7 @@ def cmd_dev(voice: bool = False, speak: bool = False) -> int:
 
 def cmd_electron(voice: bool = False, speak: bool = False) -> int:
     """API + the UI's `electron:dev` script (Vite with hot reload, inside Electron)."""
-    if not preflight.run(voice, ui=True, speak=speak):
+    if not preflight.run(voice, ui=True, speak=speak, electron=True):
         return 1
     supervisor = Supervisor()
     supervisor.install_signal_handlers()
