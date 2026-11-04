@@ -10,6 +10,8 @@ A local voice assistant and thinking partner for macOS. Say **"ok Akane"**
   they're done. All of it goes through the `claude` CLI on your subscription,
   never a billed API key.
 
+**New here? Read the [user guide](docs/user-guide.md)**: modes, every command-line option, what to say, and troubleshooting.
+
 Akane replaces Dann of Thursday and runs on the same shared runtime,
 [pnd-mcp](https://github.com/R3dPnd/pnd-mcp) (`runtime/`).
 
