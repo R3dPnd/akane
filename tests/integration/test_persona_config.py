@@ -63,6 +63,7 @@ def test_persona_block(config):
     assert (p.name, p.wake_phrase) == ("Akane", "ok Akane")
     assert p.data_dir == Path("~/.akane").expanduser()
     assert (p.api_port, p.ui_port) == (8000, 3000)
+    assert p.theme == "rose"
 
 
 def test_runtime_loader_accepts_the_config(runtime_on_path):
@@ -197,3 +198,7 @@ def test_runtime_supports_speaking_typed_replies(runtime_on_path):
     from voice.orchestrator import Orchestrator
 
     assert hasattr(Orchestrator, "_speak_queued")
+
+
+def test_runtime_ui_has_the_rose_theme():
+    assert '[data-theme="rose"]' in (RUNTIME_DIR / "ui" / "src" / "theme.css").read_text()
