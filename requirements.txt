@@ -1,0 +1,6 @@
+# Shared runtime (voice pipeline, MCP client/tool-servers, dashboard) —
+# see runtime/requirements.txt (the pnd-mcp submodule).
+-r runtime/requirements.txt
+
+# Persona-repo-only deps
+psutil>=6.0.0  # `akane stop`/`akane restart` (akane.py) — cross-platform process discovery to reliably kill akane dev/electron/start and any orphaned API/UI children

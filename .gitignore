@@ -1,1 +1,40 @@
+# Ignore local virtual env
+.venv/
+
+# Local secrets / environment overrides
+.env
+
+# Machine-specific config overlay (Ollama model, Whisper size, audio devices,
+# paths) — copy from config.local.example.yaml. config.yaml itself is tracked:
+# it defines Akane and holds no secrets.
+config.local.yaml
+
+# Model binaries — downloaded by scripts/setup.sh or trained by
+# scripts/train_wakeword.sh; never committed.
+models/*.tflite
+models/*.onnx
+models/*.onnx.data
+models/*.bin
+models/*.npz
+models/piper/
+
+# Wake word training clips (synthetic ones are regenerated; real recordings are personal)
+training/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor/IDE project files — personal, not shared
+.idea/
+.DS_Store
+
+# Test / coverage artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Brainstorm mockups and plan-execution scratch
 .superpowers/
