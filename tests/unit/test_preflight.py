@@ -61,11 +61,13 @@ def test_clean_machine_has_no_problems(runtime):
     assert _check() == []
 
 
-def test_busy_port_is_an_error_suggesting_dann_stop(runtime):
+def test_busy_port_is_an_error_saying_how_to_free_it(runtime):
     (problem,) = _check(busy={API})
     assert problem.level == "error"
     assert "8000" in problem.message
-    assert "dann stop" in problem.fix
+    assert "akane stop" in problem.fix
+    assert "lsof -i :8000" in problem.fix
+    assert "dann" not in (problem.message + problem.fix).lower()
 
 
 def test_missing_wake_model_is_an_error_with_voice(runtime):
@@ -161,6 +163,33 @@ class TestRealProbes:
             s.bind(("127.0.0.1", 0))
             port = s.getsockname()[1]
         assert preflight.port_in_use(port) is False
+
+    def test_lingering_time_wait_is_not_in_use(self):
+        # Right after `akane stop`, closed connections sit in TIME_WAIT for up
+        # to a minute; uvicorn can still bind, so startup must not refuse.
+        srv = socket.socket()
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        srv.bind(("127.0.0.1", 0))
+        srv.listen()
+        port = srv.getsockname()[1]
+        cli = socket.create_connection(("127.0.0.1", port))
+        conn, _ = srv.accept()
+        conn.close(); cli.close(); srv.close()
+        assert preflight.port_in_use(port) is False
+
+    def test_ipv6_localhost_listener_is_in_use(self):
+        # Vite listens on [::1] only.
+        with socket.socket(socket.AF_INET6) as s:
+            s.bind(("::1", 0))
+            s.listen()
+            assert preflight.port_in_use(s.getsockname()[1]) is True
+
+    def test_wildcard_listener_is_in_use(self):
+        # uvicorn binds 0.0.0.0.
+        with socket.socket() as s:
+            s.bind(("0.0.0.0", 0))
+            s.listen()
+            assert preflight.port_in_use(s.getsockname()[1]) is True
 
     def test_ollama_models_parses_ollama_list(self, monkeypatch):
         listing = "NAME                  ID      SIZE    MODIFIED\nakane-router:latest   abc     4.7 GB  now\nqwen2.5:7b-instruct   def     4.7 GB  now\n"

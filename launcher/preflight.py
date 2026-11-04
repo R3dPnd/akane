@@ -1,4 +1,4 @@
-"""Checks run before Akane starts, so a fresh machine or a still-running Dann
+"""Checks run before Akane starts, so a fresh machine or a busy port
 gets a one-line explanation and the command that fixes it, instead of a
 uvicorn traceback or a voice pipeline that silently never wakes.
 
@@ -89,8 +89,8 @@ def check(
 ) -> list[Problem]:
     """Everything wrong with this machine for starting Akane, errors first."""
     problems = [
-        Problem("error", f"port {port} is already in use — is Dann (or another Akane) running?",
-                "run `dann stop` (or `akane stop`), then try again")
+        Problem("error", f"port {port} is already in use by another program",
+                f"run `akane stop`; if it's still busy, `lsof -i :{port}` shows what's using it")
         for port in ports if port_in_use(port)
     ]
     if voice:
@@ -112,11 +112,19 @@ def report(problems: list[Problem]) -> bool:
 
 
 def port_in_use(port: int) -> bool:
-    with socket.socket() as s:
+    """Whether something is listening on `port` on this machine (IPv4 or IPv6).
+
+    Connects rather than test-binding: a bind fails for a minute after any
+    server stops (its closed connections sit in TIME_WAIT) even though
+    uvicorn/Vite would start fine, and a bind to 127.0.0.1 can't see Vite
+    listening on [::1] only.
+    """
+    for host in ("127.0.0.1", "::1"):
         try:
-            s.bind(("127.0.0.1", port))
+            with socket.create_connection((host, port), timeout=0.5):
+                return True
         except OSError:
-            return True
+            continue
     return False
 
 

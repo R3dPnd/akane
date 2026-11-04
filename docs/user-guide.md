@@ -97,7 +97,7 @@ on one line along with the command that fixes it:
 
 | Message | Level | What to do |
 |---|---|---|
-| `port 8000 (or 3000) is already in use — is Dann (or another Akane) running?` | stops startup | `dann stop` or `akane stop`, then try again |
+| `port 8000 (or 3000) is already in use by another program` | stops startup | `akane stop`; if it's still busy, `lsof -i :8000` shows what's using it |
 | `wake-word model ok_akane.onnx not found` | stops `--voice` / `start` | copy it from your old Mac into `models/`, or run `scripts/train_wakeword.sh` |
 | `Piper voice en_GB-alba-medium not found` | stops `--voice` / `--speak` / `start` | `scripts/setup.sh` |
 | `Electron isn't installed correctly, so the app window can't open` | stops `dev --voice` / `electron` | `scripts/fix_electron.sh` |
@@ -270,7 +270,7 @@ in `config.local.yaml`.
 | Symptom | Likely cause and fix |
 |---|---|
 | `akane: command not found` | `~/.local/bin` isn't on your PATH: `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc`, then open a new terminal. |
-| "port 8000 is already in use" | Dann or an old Akane is running: `dann stop` / `akane stop`. |
+| "port 8000 is already in use" | Another program, or an old Akane, has the port: `akane stop`, then `lsof -i :8000` if it's still busy. |
 | App window doesn't open; "Electron failed to install correctly" | `scripts/fix_electron.sh` (npm's Electron install breaks on Node 26). |
 | She says she did something but nothing happened | Check **Logs** for a `Calling tool` line. Rephrase more directly ("set a reminder to…"). The local model occasionally skips a tool. |
 | She wakes up on her own | Room sound near the threshold, or her own voice. Raise `wake_word.threshold`, or record your voice (section 10). |
