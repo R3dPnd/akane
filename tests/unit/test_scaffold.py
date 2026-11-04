@@ -9,7 +9,6 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.mark.xfail(strict=True, reason="launcher arrives in Task 2")
 def test_runtime_submodule_is_the_persona_agnostic_runtime():
     from launcher.paths import RUNTIME_DIR
 

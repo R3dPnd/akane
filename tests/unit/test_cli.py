@@ -1,0 +1,80 @@
+"""Unit tests for launcher.cli — argument parsing and dispatch to commands."""
+
+from __future__ import annotations
+
+import pytest
+
+from launcher import cli, commands
+
+
+@pytest.fixture()
+def recorded(monkeypatch):
+    """Replace every command with a recorder that returns a distinctive code."""
+    calls = []
+
+    def recorder(name, code):
+        def fake(*args, **kwargs):
+            calls.append((name, args, kwargs))
+            return code
+
+        return fake
+
+    monkeypatch.setattr(commands, "cmd_dev", recorder("dev", 10))
+    monkeypatch.setattr(commands, "cmd_electron", recorder("electron", 11))
+    monkeypatch.setattr(commands, "cmd_start", recorder("start", 12))
+    monkeypatch.setattr(commands, "cmd_stop", recorder("stop", 13))
+    monkeypatch.setattr(commands, "cmd_restart", recorder("restart", 14))
+    return calls
+
+
+@pytest.mark.parametrize(
+    ("argv", "expected_call", "expected_code"),
+    [
+        (["dev"], ("dev", (), {"voice": False}), 10),
+        (["dev", "--voice"], ("dev", (), {"voice": True}), 10),
+        (["code"], ("dev", (), {"voice": False}), 10),
+        (["electron"], ("electron", (), {"voice": False}), 11),
+        (["electron", "--voice"], ("electron", (), {"voice": True}), 11),
+        (["start"], ("start", (), {}), 12),
+        (["stop"], ("stop", (), {}), 13),
+    ],
+)
+def test_dispatches_each_subcommand(recorded, argv, expected_call, expected_code):
+    assert cli.main(argv) == expected_code
+    assert recorded == [expected_call]
+
+
+def test_restart_relaunches_through_the_cli_itself(recorded):
+    assert cli.main(["restart"]) == 14
+    ((name, _args, kwargs),) = recorded
+    assert name == "restart"
+    assert kwargs["relaunch"] is cli.main
+
+
+def test_no_arguments_prints_usage_and_succeeds(recorded, capsys):
+    assert cli.main([]) == 0
+    assert "usage:" in capsys.readouterr().out
+    assert recorded == []
+
+
+def test_unknown_command_is_a_usage_error(recorded, capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["bogus"])
+    assert exc_info.value.code == 2
+    assert "invalid choice" in capsys.readouterr().err
+    assert recorded == []
+
+
+@pytest.mark.parametrize("argv", [["start", "--voice"], ["stop", "--voice"]])
+def test_voice_flag_is_rejected_where_it_means_nothing(recorded, argv):
+    with pytest.raises(SystemExit):
+        cli.main(argv)
+    assert recorded == []
+
+
+def test_help_lists_every_subcommand(capsys):
+    with pytest.raises(SystemExit):
+        cli.main(["--help"])
+    out = capsys.readouterr().out
+    for name in ("dev", "code", "electron", "start", "stop", "restart"):
+        assert name in out

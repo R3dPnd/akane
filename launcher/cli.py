@@ -1,0 +1,65 @@
+"""Command-line interface: parse arguments and dispatch to launcher.commands."""
+
+from __future__ import annotations
+
+import argparse
+
+from launcher import commands
+
+DESCRIPTION = "Developer tooling for Akane: run, stop, and restart Akane."
+
+EPILOG = """\
+Saying "goodbye"/"thanks Akane" to the voice pipeline only ends the current
+conversation, not the process — use `stop` or Ctrl+C to actually stop Akane.
+`restart` is also available as the dashboard restart button, or by saying
+"restart yourself"/"restart Akane". Restarts are always human-triggered."""
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="akane",
+        description=DESCRIPTION,
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    subparsers = parser.add_subparsers(dest="command", metavar="<command>")
+
+    dev = subparsers.add_parser(
+        "dev",
+        aliases=["code"],
+        help="API + UI dev servers (NO_VOICE=1); opens a browser tab",
+    )
+    dev.add_argument(
+        "--voice",
+        action="store_true",
+        help="enable the voice pipeline and open a fullscreen Electron window instead",
+    )
+    dev.set_defaults(run=lambda args: commands.cmd_dev(voice=args.voice))
+
+    electron = subparsers.add_parser("electron", help="API + Electron dev window (NO_VOICE=1)")
+    electron.add_argument("--voice", action="store_true", help="enable the voice pipeline")
+    electron.set_defaults(run=lambda args: commands.cmd_electron(voice=args.voice))
+
+    start = subparsers.add_parser("start", help="API only, with the voice pipeline enabled")
+    start.set_defaults(run=lambda args: commands.cmd_start())
+
+    stop = subparsers.add_parser(
+        "stop",
+        help="stop every running akane process, including orphans from a closed terminal",
+    )
+    stop.set_defaults(run=lambda args: commands.cmd_stop())
+
+    restart = subparsers.add_parser("restart", help="stop and relaunch with the same mode/flags")
+    restart.set_defaults(run=lambda args: commands.cmd_restart(relaunch=main))
+
+    return parser
+
+
+def main(argv: list[str]) -> int:
+    """Run the `akane` CLI with `argv` (excluding the program name); returns the exit code."""
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.command is None:
+        parser.print_help()
+        return 0
+    return args.run(args)
