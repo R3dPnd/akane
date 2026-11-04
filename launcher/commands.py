@@ -28,11 +28,11 @@ def run_in_background(fn: Callable[..., object], *args: object) -> None:
     threading.Thread(target=fn, args=args, daemon=True).start()
 
 
-def _start_api_and_wait(supervisor: Supervisor, voice: bool) -> bool:
+def _start_api_and_wait(supervisor: Supervisor, voice: bool, speak: bool = False) -> bool:
     """Spawn the API with its output forwarded, and block until its health
     endpoint answers. On failure, report it and stop the API; returns whether
     it came up."""
-    api = supervisor.add(processes.spawn_api(voice))
+    api = supervisor.add(processes.spawn_api(voice, speak=speak))
     processes.forward_output(api, processes.API_PREFIX)
 
     print(f"{_INFO} Waiting for API on :{paths.API_PORT}…", flush=True)
@@ -62,22 +62,28 @@ def _open_when_ui_ready(supervisor: Supervisor, in_electron: bool) -> None:
         webbrowser.open(url)
 
 
-def cmd_dev(voice: bool = False) -> int:
+def _voice_label(voice: bool, speak: bool) -> str:
+    if voice:
+        return "with voice"
+    return "speak-only: replies read aloud, mic off" if speak else "NO_VOICE=1"
+
+
+def cmd_dev(voice: bool = False, speak: bool = False) -> int:
     """API + Vite dev server. Opens a browser tab — or, with `voice`, a
     fullscreen Electron window, since running Akane for real should feel like
     an app rather than a dev-server tab."""
-    if not preflight.run(voice, ui=True):
+    if not preflight.run(voice, ui=True, speak=speak):
         return 1
     supervisor = Supervisor()
     supervisor.install_signal_handlers()
-    if not _start_api_and_wait(supervisor, voice):
+    if not _start_api_and_wait(supervisor, voice, speak):
         return 1
 
     ui = supervisor.add(processes.spawn_npm_script("dev"))
     processes.forward_output(ui, processes.UI_PREFIX)
     run_in_background(_open_when_ui_ready, supervisor, voice)
 
-    voice_label = "with voice" if voice else "NO_VOICE=1"
+    voice_label = _voice_label(voice, speak)
     window_label = "  (fullscreen Electron window)" if voice else ""
     print(f"{_OK} API  → http://localhost:{paths.API_PORT}  ({voice_label})", flush=True)
     print(f"{_OK} UI   → {paths.ui_url(paths.UI_PORT)}{window_label}", flush=True)
@@ -85,19 +91,19 @@ def cmd_dev(voice: bool = False) -> int:
     return supervisor.wait()
 
 
-def cmd_electron(voice: bool = False) -> int:
+def cmd_electron(voice: bool = False, speak: bool = False) -> int:
     """API + the UI's `electron:dev` script (Vite with hot reload, inside Electron)."""
-    if not preflight.run(voice, ui=True):
+    if not preflight.run(voice, ui=True, speak=speak):
         return 1
     supervisor = Supervisor()
     supervisor.install_signal_handlers()
-    if not _start_api_and_wait(supervisor, voice):
+    if not _start_api_and_wait(supervisor, voice, speak):
         return 1
 
     electron = supervisor.add(processes.spawn_npm_script("electron:dev"))
     processes.forward_output(electron, processes.UI_PREFIX)
 
-    voice_label = "with voice" if voice else "NO_VOICE=1"
+    voice_label = _voice_label(voice, speak)
     print(f"{_OK} API      → http://localhost:{paths.API_PORT}  ({voice_label})", flush=True)
     print(f"{_OK} Electron → opening window…", flush=True)
     print(f"{_OK} Ctrl+C to stop all\n", flush=True)

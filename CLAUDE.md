@@ -13,6 +13,7 @@ Design: `docs/superpowers/specs/2026-10-26-akane-design.md`. Phase plans:
 ```bash
 scripts/setup.sh                      # fresh-Mac setup; re-runnable
 akane dev --voice                     # API + UI + voice, Electron window
+akane dev --speak                     # API + UI, typed replies read aloud, mic never opened
 akane dev                             # API + UI, no voice, browser tab
 akane stop                            # stop every Akane process (never Dann's)
 .venv/bin/pytest tests --cov=launcher # keep launcher coverage ≥95%

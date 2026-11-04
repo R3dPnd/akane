@@ -42,9 +42,10 @@ def _config():
     }
 
 
-def _check(config=None, voice=True, busy=(), models=("akane-router:latest",)):
+def _check(config=None, voice=True, busy=(), models=("akane-router:latest",), speak=False):
     return preflight.check(
         voice,
+        speak=speak,
         config=_config() if config is None else config,
         ports=[API, UI],
         port_in_use=lambda port: port in busy,
@@ -123,6 +124,14 @@ def test_report_returns_false_on_error_true_on_warnings_only(capsys):
     assert "[akane] warning: router missing — fix: build it" in out
 
 
+def test_speak_mode_needs_the_voice_but_not_the_wake_model(runtime):
+    (runtime.parent / "models" / "ok_akane.onnx").unlink()
+    assert _check(voice=False, speak=True) == []
+    (runtime.parent / "models" / "piper" / "en_GB-alba-medium.onnx").unlink()
+    (problem,) = _check(voice=False, speak=True)
+    assert "en_GB-alba-medium" in problem.message
+
+
 class TestRealProbes:
     def test_port_in_use_sees_a_bound_socket(self):
         with socket.socket() as s:
@@ -153,7 +162,7 @@ class TestRun:
     def test_run_checks_both_ports_for_dev(self, monkeypatch):
         seen = {}
 
-        def fake_check(voice, *, config, ports, port_in_use, ollama_models):
+        def fake_check(voice, *, speak, config, ports, port_in_use, ollama_models):
             seen.update(voice=voice, ports=ports)
             return []
 
@@ -168,6 +177,13 @@ class TestRun:
         monkeypatch.setattr(preflight, "_load_config", lambda: {})
         preflight.run(voice=True, ui=False)
         assert seen["ports"] == [paths.API_PORT]
+
+    def test_run_passes_speak_mode_to_check(self, monkeypatch):
+        seen = {}
+        monkeypatch.setattr(preflight, "check", lambda voice, **kw: seen.update(kw) or [])
+        monkeypatch.setattr(preflight, "_load_config", lambda: {})
+        preflight.run(voice=False, ui=True, speak=True)
+        assert seen["speak"] is True
 
     def test_run_fails_on_an_error(self, monkeypatch, capsys):
         monkeypatch.setattr(preflight, "check", lambda voice, **kw: [preflight.Problem("error", "x", "y")])

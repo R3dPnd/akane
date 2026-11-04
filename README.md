@@ -23,8 +23,10 @@ Akane replaces Dann of Thursday and runs on the same shared runtime,
 | "remind me to call the dentist tomorrow" | saves a reminder in `~/.akane` |
 | "what do my notes say about …" | searches your pnd-notes (read-only) |
 
-Type in the dashboard's chat instead of talking, and Akane still reads her
-replies aloud (with `akane dev --voice`; replies wait if she's mid-conversation).
+**Typing instead of talking:** Akane reads her replies to typed chat aloud.
+`akane dev --speak` does this *without ever listening*: no wake word, no mic.
+With `akane dev --voice` she also listens, and typed replies wait if she's
+mid-conversation.
 
 Coming next (see `docs/superpowers/specs/2026-10-26-akane-design.md` §9):
 
@@ -52,7 +54,9 @@ put a bigger model or Whisper size in `config.local.yaml`; no code changes.
 ## Running
 
 ```bash
-akane dev --voice   # everything, in an Electron window
+akane dev --voice   # talk and type; she listens and speaks (Electron window)
+akane dev --speak   # type only; she speaks her replies, mic never opened
+akane dev           # type only, silent (browser tab)
 akane stop
 ```
 

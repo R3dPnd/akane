@@ -30,11 +30,13 @@ def recorded(monkeypatch):
 @pytest.mark.parametrize(
     ("argv", "expected_call", "expected_code"),
     [
-        (["dev"], ("dev", (), {"voice": False}), 10),
-        (["dev", "--voice"], ("dev", (), {"voice": True}), 10),
-        (["code"], ("dev", (), {"voice": False}), 10),
-        (["electron"], ("electron", (), {"voice": False}), 11),
-        (["electron", "--voice"], ("electron", (), {"voice": True}), 11),
+        (["dev"], ("dev", (), {"voice": False, "speak": False}), 10),
+        (["dev", "--voice"], ("dev", (), {"voice": True, "speak": False}), 10),
+        (["dev", "--speak"], ("dev", (), {"voice": False, "speak": True}), 10),
+        (["code"], ("dev", (), {"voice": False, "speak": False}), 10),
+        (["electron"], ("electron", (), {"voice": False, "speak": False}), 11),
+        (["electron", "--voice"], ("electron", (), {"voice": True, "speak": False}), 11),
+        (["electron", "--speak"], ("electron", (), {"voice": False, "speak": True}), 11),
         (["start"], ("start", (), {}), 12),
         (["stop"], ("stop", (), {}), 13),
     ],
@@ -78,3 +80,9 @@ def test_help_lists_every_subcommand(capsys):
     out = capsys.readouterr().out
     for name in ("dev", "code", "electron", "start", "stop", "restart"):
         assert name in out
+
+
+@pytest.mark.parametrize("command", ["dev", "electron"])
+def test_voice_and_speak_are_mutually_exclusive(recorded, command):
+    with pytest.raises(SystemExit):
+        cli.main([command, "--voice", "--speak"])

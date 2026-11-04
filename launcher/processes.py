@@ -34,7 +34,7 @@ def persona_env() -> dict[str, str]:
     }
 
 
-def build_api_env(voice: bool, base_env: Mapping[str, str] | None = None) -> dict[str, str]:
+def build_api_env(voice: bool, base_env: Mapping[str, str] | None = None, speak: bool = False) -> dict[str, str]:
     """Environment for the API process.
 
     - PND_CONFIG_PATH points the runtime at this repo's config.yaml (it would
@@ -46,14 +46,17 @@ def build_api_env(voice: bool, base_env: Mapping[str, str] | None = None) -> dic
     env["PYTHONUNBUFFERED"] = "1"
     env["PND_CONFIG_PATH"] = str(paths.CONFIG_PATH)
     env.update(persona_env())
-    if voice:
+    env.pop("PND_VOICE_MODE", None)
+    if voice or speak:
         env.pop("NO_VOICE", None)
     else:
         env["NO_VOICE"] = "1"
+    if speak and not voice:
+        env["PND_VOICE_MODE"] = "speak"  # voice pipeline without the mic
     return env
 
 
-def spawn_api(voice: bool, capture_output: bool = True) -> subprocess.Popen:
+def spawn_api(voice: bool, capture_output: bool = True, speak: bool = False) -> subprocess.Popen:
     """Start the runtime's FastAPI app under uvicorn, from inside runtime/.
 
     With `capture_output`, stdout/stderr are piped so the caller can prefix and
@@ -67,7 +70,7 @@ def spawn_api(voice: bool, capture_output: bool = True) -> subprocess.Popen:
         "--port", str(paths.API_PORT),
     ]
     output = {**_CAPTURED, "stderr": subprocess.PIPE} if capture_output else {}
-    return subprocess.Popen(command, cwd=str(paths.RUNTIME_DIR), env=build_api_env(voice), **output)
+    return subprocess.Popen(command, cwd=str(paths.RUNTIME_DIR), env=build_api_env(voice, speak=speak), **output)
 
 
 def spawn_npm_script(script: str) -> subprocess.Popen:

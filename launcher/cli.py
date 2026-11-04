@@ -15,6 +15,16 @@ conversation, not the process — use `stop` or Ctrl+C to actually stop Akane.
 "restart yourself"/"restart Akane". Restarts are always human-triggered."""
 
 
+def _add_voice_flags(subparser: argparse.ArgumentParser, voice_help: str) -> None:
+    group = subparser.add_mutually_exclusive_group()
+    group.add_argument("--voice", action="store_true", help=voice_help)
+    group.add_argument(
+        "--speak",
+        action="store_true",
+        help="read replies to typed chat aloud, without ever listening (no mic)",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="akane",
@@ -29,16 +39,12 @@ def build_parser() -> argparse.ArgumentParser:
         aliases=["code"],
         help="API + UI dev servers (NO_VOICE=1); opens a browser tab",
     )
-    dev.add_argument(
-        "--voice",
-        action="store_true",
-        help="enable the voice pipeline and open a fullscreen Electron window instead",
-    )
-    dev.set_defaults(run=lambda args: commands.cmd_dev(voice=args.voice))
+    _add_voice_flags(dev, voice_help="enable the voice pipeline and open a fullscreen Electron window instead")
+    dev.set_defaults(run=lambda args: commands.cmd_dev(voice=args.voice, speak=args.speak))
 
     electron = subparsers.add_parser("electron", help="API + Electron dev window (NO_VOICE=1)")
-    electron.add_argument("--voice", action="store_true", help="enable the voice pipeline")
-    electron.set_defaults(run=lambda args: commands.cmd_electron(voice=args.voice))
+    _add_voice_flags(electron, voice_help="enable the voice pipeline")
+    electron.set_defaults(run=lambda args: commands.cmd_electron(voice=args.voice, speak=args.speak))
 
     start = subparsers.add_parser("start", help="API only, with the voice pipeline enabled")
     start.set_defaults(run=lambda args: commands.cmd_start())

@@ -48,8 +48,8 @@ def harness(monkeypatch, fake_process_factory):
 
     h = Harness()
 
-    def spawn_api(voice, capture_output=True):
-        h.spawned.append(("api", voice, capture_output))
+    def spawn_api(voice, capture_output=True, speak=False):
+        h.spawned.append(("api", voice, capture_output) + (("speak",) if speak else ()))
         # Let the session end right away once the supervisor starts waiting.
         h.api.returncode = 0
         return h.api
@@ -73,7 +73,8 @@ def harness(monkeypatch, fake_process_factory):
     monkeypatch.setattr(commands.webbrowser, "open", h.opened_urls.append)
     monkeypatch.setattr(commands, "Supervisor", _TestSupervisor)
     monkeypatch.setattr(commands, "run_in_background", lambda fn, *args: fn(*args))
-    monkeypatch.setattr(preflight, "run", lambda voice, ui: h.preflight_calls.append((voice, ui)) or h.preflight_ok)
+    monkeypatch.setattr(preflight, "run",
+                        lambda voice, ui, speak=False: h.preflight_calls.append((voice, ui) + (("speak",) if speak else ())) or h.preflight_ok)
     return h
 
 
@@ -233,3 +234,18 @@ class TestPreflight:
         harness.spawned.clear()
         assert run() == 1
         assert harness.spawned == []
+
+
+class TestSpeakMode:
+    def test_dev_speak_runs_speak_only_api_and_opens_a_browser(self, harness):
+        harness.spawned.clear()
+        harness.preflight_calls.clear()
+        assert commands.cmd_dev(speak=True) == 0
+        assert harness.spawned == [("api", False, True, "speak"), ("npm", "dev")]
+        assert harness.preflight_calls == [(False, True, "speak")]
+        assert harness.opened_urls[-1] == paths.ui_url(paths.UI_PORT)
+
+    def test_electron_speak_runs_speak_only_api(self, harness):
+        harness.spawned.clear()
+        assert commands.cmd_electron(speak=True) == 0
+        assert harness.spawned[0] == ("api", False, True, "speak")

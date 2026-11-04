@@ -26,6 +26,20 @@ def popen_calls(monkeypatch, fake_process_factory):
 
 
 class TestBuildApiEnv:
+    def test_speak_mode_runs_the_voice_pipeline_without_the_mic(self):
+        env = processes.build_api_env(voice=False, speak=True, base_env={"NO_VOICE": "1"})
+        assert "NO_VOICE" not in env
+        assert env["PND_VOICE_MODE"] == "speak"
+
+    def test_listening_voice_clears_an_inherited_speak_mode(self):
+        env = processes.build_api_env(voice=True, base_env={"PND_VOICE_MODE": "speak"})
+        assert "PND_VOICE_MODE" not in env
+
+    def test_no_voice_ignores_speak_mode(self):
+        env = processes.build_api_env(voice=False, base_env={"PND_VOICE_MODE": "speak"})
+        assert env["NO_VOICE"] == "1"
+        assert "PND_VOICE_MODE" not in env
+
     def test_api_env_points_runtime_at_akane_config_and_ports(self):
         env = processes.build_api_env(voice=True, base_env={"DANN_CONFIG_PATH": "/x", "NO_VOICE": "1"})
         assert env["PND_CONFIG_PATH"] == str(paths.CONFIG_PATH)
@@ -137,3 +151,9 @@ class TestForwardOutput:
     def test_skips_streams_that_were_not_captured(self, fake_process_factory):
         proc = fake_process_factory(stdout=["out\n"], stderr=None)
         assert len(processes.forward_output(proc, "[x]", out=io.StringIO())) == 1
+
+
+def test_spawn_api_passes_speak_mode_through(popen_calls):
+    processes.spawn_api(voice=False, speak=True)
+    (call,) = popen_calls
+    assert call["env"]["PND_VOICE_MODE"] == "speak"

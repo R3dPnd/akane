@@ -73,6 +73,7 @@ def _check_node_servers(config: dict[str, Any]) -> list[Problem]:
 def check(
     voice: bool,
     *,
+    speak: bool = False,
     config: dict[str, Any],
     ports: list[int],
     port_in_use: Callable[[int], bool],
@@ -85,7 +86,9 @@ def check(
         for port in ports if port_in_use(port)
     ]
     if voice:
-        problems += _check_wake_model(config) + _check_voice_model(config)
+        problems += _check_wake_model(config)
+    if voice or speak:
+        problems += _check_voice_model(config)
     problems += _check_router(config, ollama_models()) + _check_node_servers(config)
     return problems
 
@@ -125,9 +128,9 @@ def _load_config() -> dict[str, Any]:
     return load_config(paths.CONFIG_PATH)
 
 
-def run(voice: bool, ui: bool) -> bool:
+def run(voice: bool, ui: bool, speak: bool = False) -> bool:
     """Check this machine with the real probes and report; False means don't start."""
     ports = [paths.API_PORT, paths.UI_PORT] if ui else [paths.API_PORT]
-    problems = check(voice, config=_load_config(), ports=ports,
+    problems = check(voice, speak=speak, config=_load_config(), ports=ports,
                      port_in_use=port_in_use, ollama_models=ollama_models)
     return report(problems)
