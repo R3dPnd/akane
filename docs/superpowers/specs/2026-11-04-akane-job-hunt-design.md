@@ -80,14 +80,14 @@ job_hunt:
 
 - Akane never submits applications, fills in web forms or logs into job sites.
   The user applies themselves.
-- No scraping behind logins (LinkedIn's signed-in pages, etc.); public pages
-  only, through Claude's web search and fetch.
+- No scraping behind logins (LinkedIn's signed-in pages, etc.). Postings come
+  from JSearch, plus Claude's public web search for gig platforms (§7.3).
 - No email or phone delivery of the report in this build.
 
 ## 6. Anti-goals (a failure even if it "works")
 
-- **Made-up leads or dead links.** Every lead must have a URL that was fetched
-  and loaded during the hunt (§7.2).
+- **Made-up leads or dead links.** Every lead's URL is checked during the hunt
+  (§7.3): dead links are dropped, and bot-blocked ones are flagged.
 - Tailored documents that invent employers, dates, metrics or skills (carried
   over from the main spec §6.8).
 - Showing dismissed or applied-to leads again, or reading the same report aloud
@@ -166,6 +166,16 @@ via a new Akane tool server, `job_search_server` (in the **akane** repo under
    postings.
 2. New postings are those not yet in Akane's leads index
    (`~/.akane/applications/leads.json`: app posting id → status, number, date).
+2b. **Gig platforms, a second source (my call).** JSearch mostly indexes
+   LinkedIn, Indeed and Glassdoor, so it finds little async gig work (AI
+   code-evaluation and training platforms, paid code review, bounties), which
+   is the user's top priority. One extra `claude` CLI call with WebSearch
+   allowed asks for currently open gig opportunities matching §4, as strict
+   JSON with a URL each. These leads have no app posting id. They're keyed by
+   URL in `leads.json`, run through the same screening and link checks, and are
+   marked "gig" in the report. If tailored or marked applied, Akane creates the
+   application in the app directly (`POST /applications`) instead of tracking
+   a posting.
 3. **One `claude` CLI call** (shared bridge) screens all new postings at once.
    It gets their title, company, pay and a trimmed description, plus the
    resume text (from the app's active resume) and the criteria (§4). It
@@ -220,7 +230,7 @@ via a new Akane tool server, `job_search_server` (in the **akane** repo under
 | `get_lead(n)` | one lead, with its fit and suggestion |
 | `dismiss_lead(n)` | dismiss here and in the app |
 | `mark_applied(n)` | track the posting as an application in the app; the lead becomes `applied` |
-| `update_application(company, status)` | move the application to the matching app stage (applied / interviewing / rejected / offer / closed) |
+| `update_application(company, status)` | applied → stage "Applied"; interviewing → the next interview stage after the current one (Phone Screen → Technical Interview → Final Round); offer → stage "Offer" and status `offer`; rejected → stage "Rejected" and status `rejected`; closed → status `archived` (stage unchanged). Stages are found by name in the application's own stage list. *My call.* |
 | `list_applications()` | the app's applications and their stages |
 | `start_hunt()` | run `akane hunt` detached now; returns "On it"; announced when done |
 | `start_tailoring(n)` | track the lead as an application if it isn't already, start the app's pipeline with the active resume; returns "On it"; Akane follows it (§7.7) |
@@ -241,10 +251,14 @@ it when idle (reusing the typed-reply speech queue) and posts it into the
    active resume).
 2. A detached `akane tailor-watch <job>` follows the job (polling
    `/pipeline/jobs/{id}`, or using its SSE events).
-   - **`awaiting_clarification`:** the questions are posted into the "Morning
-     report" chat and announced ("I have 2 quick questions about the Acme
-     resume"). The user answers in chat or by voice; `answer_tailoring`
-     submits the answers and the watcher continues.
+   - **`awaiting_clarification`** (the app's pipeline always stops here): the
+     questions are posted into the "Morning report" chat and announced ("I
+     have 2 quick questions about the Acme resume"). The user answers in chat
+     or by voice; `answer_tailoring` submits the answers. "Skip the questions"
+     submits none and carries on. *My call:* there's no automatic timeout. The
+     job stays waiting, survives restarts (the watcher is re-spawned from
+     `jobs.json` when Akane starts), and each morning report lists any
+     tailoring that's waiting on answers.
    - **`awaiting_review`** (*my call*): Akane accepts the suggested edits.
      She saves a new resume version with them (the app's in-place Word edit,
      formatting kept) and generates a cover letter. Both files go to
@@ -306,4 +320,7 @@ announcement pathway it builds is reused by Phase 3 later.
 - For tailoring, Akane accepts the pipeline's suggested edits automatically and saves the Word files; the app's UI stays available for review.
 - Clarifying questions from the pipeline are asked in the "Morning report" chat.
 - Background work runs as detached `akane` commands recorded in `jobs.json`; announcements wait for the next start if Akane is down.
-- Gig platforms count (via JSearch results); excluded via `job_hunt.kinds` if unwanted.
+- Gig platforms come from a second source: one Claude web-search call per hunt, keyed by URL. Excluded via `job_hunt.kinds` if unwanted.
+- Status words map onto the app's stages and status field as in §7.6.
+- Clarifying questions never time out; "skip the questions" proceeds without answers; waiting jobs appear in each morning report.
+- Smaller items: the search parameter is `remote=true`; `changes.md` verifies each edit against the new text; the cover-letter Word file is built by Akane from the app's text; the launchd agent sets the working directory (for `../.env` and `./uploads`) and PATH (for `claude`); `job_search_server` lives in pnd-mcp's `integrations/servers/` (servers resolve inside `runtime/`), generic over a configurable base URL; announcement and stream changes are pnd-mcp commits plus a submodule bump.
