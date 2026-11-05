@@ -1,7 +1,7 @@
 # Akane — Job Hunt & Resume Tailoring Design
 
 **Date:** 2026-11-04
-**Status:** Draft for review
+**Status:** Draft for review (revised 2026-11-05 to build on pnd-job-search)
 **Extends:** `2026-10-26-akane-design.md`. It replaces that spec's §6.8
 ("Job applications") and moves its Phase 3b ahead of the rest of Phase 3.
 
@@ -96,165 +96,190 @@ job_hunt:
   to hunt, tailor, dismiss or mark as applied.
 - Claude usage on a billed API key; it goes through the `claude` CLI bridge only.
 
-## 7. Design
+## 7. Design: Akane on top of pnd-job-search
 
-### 7.1 Where things live
+The user already built **pnd-job-search** (`~/Git/r3dpnd/pnd-job-search`, a Go
+backend with a React UI and PostgreSQL). It already has:
 
-- **pnd-mcp (generic, persona-agnostic):**
-  - `applications_server`: MCP tools (§7.5).
-  - The hunt, report and tailoring logic in a service module the server and the
-    CLI share.
-  - An `announce` event the voice orchestrator speaks when idle, reusing the
-    typed-reply speech queue (`_speak_queued`).
-- **akane:**
-  - An `akane hunt` launcher command that runs one hunt now.
-  - `akane schedule install` / `uninstall`, which manage a launchd agent for
-    `job_hunt.run_at`; `setup.sh` offers to install it.
-  - Config: the agents and server entries, and the `job_hunt:` example in
-    `config.local.example.yaml`.
-- **Data** under `<data_dir>/applications/`:
+- **job search** through the JSearch API, with postings stored in
+  `job_postings` (upserted, dismissable, trackable);
+- **an application tracker** with stages, notes and history;
+- **resumes** (upload, versions, active resume) and fit scoring;
+- **a tailoring pipeline** that runs in the background and survives restarts:
+  fit and track analysis, then clarifying questions, then targeted edits
+  (`awaiting_review`);
+- **in-place Word editing** that keeps formatting (`DocxService.ApplyEdits`)
+  and saves a new resume version;
+- **cover letters and interview prep**;
+- **Claude through the `claude` CLI** (subscription), not the SDK.
 
-```
-master/Resume.docx            the master resume (copied from ~/Downloads/Resume.docx, then updated)
-leads.json                    every lead ever found, with its status
-reports/YYYY-MM-DD.md         each morning report as Markdown
-<company>-<role>/             per-application folder (main spec §6.8)
-applications.json             application tracker (main spec §6.8)
-```
+**User decisions (2026-11-05):**
+- Akane reuses this app as the engine instead of rebuilding it.
+- PostgreSQL comes from **Homebrew**, not Docker.
+- The user gets a **JSearch (RapidAPI) key**.
+- The **current base resume** (`~/Downloads/Resume.docx`) is used as-is for
+  now; the user will update it later by uploading a new version.
 
-### 7.2 The hunt (`akane hunt`, also run by launchd)
+### 7.1 Who does what
 
-1. Read the master resume as text (python-docx), the `job_hunt:` criteria,
-   `user.location`, and the URLs of all known leads.
-2. Make **one** `claude` CLI call through the shared bridge, with WebSearch and
-   WebFetch allowed and a generous timeout (default 15 min, configurable). The
-   prompt asks for up to `max_leads` postings that fit the criteria and the
-   resume. They must be real, currently open, and not in the known-URL list.
-   Each lead is strict JSON: `{title, org, url, pay, schedule, remote,
-   location, kind, fit}`, where `fit` is one sentence tying the lead to the
-   resume and schedule.
-3. Validate in code, not by trusting the model:
-   - parse the JSON, dropping malformed entries;
-   - drop any URL already known;
-   - **check each URL** (HTTP GET, short timeout, normal browser user agent):
-     - drop it on 404/410, a DNS failure or a connection failure (invented or
-       dead links);
-     - keep and show it on 2xx/3xx;
-     - keep it but mark it "couldn't verify, site blocks bots" on 401/403/429
-       or a bot challenge, so leads from the big boards (Indeed, LinkedIn,
-       Cloudflare-fronted sites) aren't silently dropped;
-   - drop leads whose stated pay is clearly below the floor.
-4. Append the survivors to `leads.json` with `status: new`, a `found_at` date
-   and a daily number (1…n). Write `reports/<today>.md`.
-5. Exit 0 even when nothing is found: an empty report says so. A failure (e.g.
-   Claude not signed in) is written into the report so the user hears about it
-   in the morning instead of silently getting nothing.
+| | pnd-job-search (engine) | Akane (voice, schedule, delivery) |
+|---|---|---|
+| Postings | JSearch search, `job_postings` store, dismiss/track | builds the queries from `job_hunt:` criteria; overnight `akane hunt` |
+| Screening | — | one Claude call ranks the new postings against criteria and resume and writes "why it fits" + a suggestion |
+| Report | — | `~/.akane/applications/reports/YYYY-MM-DD.md`, spoken summary, "Morning report" chat stream |
+| Applications | tracker, stages | "I applied to 1" → track the posting as an application; status updates by voice |
+| Tailoring | pipeline: analysis → clarifying questions → edits → new resume version (Word, formatting kept); cover letter | starts it, relays clarifying questions in chat, accepts the edits, saves the Word files, announces |
+| UI | full review/editing UI (`localhost:5173`) for heavy edits | everyday use by voice and text |
 
-*My call:* one CLI call per hunt, not a multi-step agent, matching the main
-spec §6.6 rule "one CLI call per job".
+Akane talks to the app only through its REST API (`http://localhost:8080/api/v1`),
+via a new Akane tool server, `job_search_server` (in the **akane** repo under
+`integrations/servers/`, since it's specific to this app, not generic runtime).
 
-### 7.3 The morning report
+### 7.2 Running the app on this Mac (J0)
 
-- **Contents:** a header line, then for each new lead its number, title,
-  company or platform, pay, schedule, remote/location, the "fit" line and the
-  link. After that, a "Follow-ups" section listing tracked applications still at
-  `applied` 7, 14, 21… days after the last status change. So each one comes up
-  once a week until the user updates it ("I heard back from Acme", "Acme
-  rejected me") or it's `closed`.
-- **Spoken version (my call):** about 3 sentences. "Morning. 6 new leads
-  overnight. The best three: a remote AI code evaluation contract at about
-  forty an hour, …. They're in the chat." Links are never read aloud.
-- **On screen:** the full report is posted as an assistant message into a
-  work stream named "Morning report" (created if missing). That way it appears
-  in the chat, where the user can reply to it, and the numbers work there.
-- **When it's delivered (user decision):**
-  - automatically, once per day, the first time Akane is ready (orchestrator
-    start in `--voice` or `--speak` mode) if today's report hasn't been
-    delivered yet;
-  - if Akane was already running when the report was written, at the first
-    wake word or typed message after that.
-  - Delivery is recorded (`reports/<today>.md` front matter, `delivered_at`) so
-    it happens once, across restarts. In silent `akane dev` the report is
-    posted in the chat but not spoken, and still counts as delivered.
+- PostgreSQL 16 from Homebrew (`brew install postgresql@16`,
+  `brew services start postgresql@16`), with database `job_search`. Migrations
+  run with the app's `migrate` command.
+- The backend is built for macOS (`go build`). The committed Windows `.exe`
+  files are not used.
+- `pnd-job-search/.env`: `DATABASE_URL`, `JOBS_API_KEY` (the user's JSearch
+  key), `JOBS_API_HOST`, `PORT=8080`, `UPLOADS_DIR`. It's gitignored, and the
+  key never goes into akane.
+- The backend runs as a **launchd agent** (always on, restarts on failure), so
+  the overnight hunt and Akane can reach it without the user starting it.
+  Managed by `akane jobs-app install|uninstall|status`. *My call.*
+- **Billing guard (anti-goal):** the app's `AIService.complete` runs `claude`
+  with `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` removed from its environment,
+  the same rule as pnd-mcp's `claude_env()`. This is a small change in
+  pnd-job-search.
+- The base resume is uploaded once and activated (`POST /resumes`,
+  `/activate`).
+- Akane's preflight warns, without blocking, if the app's `/health` doesn't
+  answer.
+
+### 7.3 The hunt (`akane hunt`, run nightly by launchd at `job_hunt.run_at`)
+
+1. Build queries from `job_hunt:`. Each `kinds` entry is combined with each
+   location (Remote uses `remote_jobs_only`), up to a cap (default 6 queries,
+   which stays inside JSearch's free tier when run nightly). The queries run
+   through the app's `GET /job-postings/search`; the app stores and dedupes the
+   postings.
+2. New postings are those not yet in Akane's leads index
+   (`~/.akane/applications/leads.json`: app posting id → status, number, date).
+3. **One `claude` CLI call** (shared bridge) screens all new postings at once.
+   It gets their title, company, pay and a trimmed description, plus the
+   resume text (from the app's active resume) and the criteria (§4). It
+   returns strict JSON per posting: `keep`, `score` 0–100, `fit` (one sentence
+   tying the posting to the resume and schedule), and `suggestion` (one
+   sentence: what to emphasize, or a caveat such as "on-site Tue; only works if
+   …").
+4. Rule checks in code, not left to the model: drop postings whose stated pay
+   is below the floor (unknown pay is kept and marked "pay not listed"). Drop
+   links that are dead (404/410 or unreachable), and flag bot-blocked links
+   "couldn't verify".
+5. Keep the top `max_leads` by score, number them, write the report, and
+   record them in `leads.json` as `new`.
+6. Failures (app down, JSearch quota used up, Claude not signed in) are
+   written into the report, so the morning summary mentions them instead of
+   silently being empty.
+
+### 7.4 The morning report
+
+- **Contents:** for each lead, its number, title, company, pay,
+  remote/location, score, the "fit" line, the suggestion and the link. Then a
+  "Follow-ups" section listing tracked applications still at "applied" 7, 14,
+  21… days after their last stage change.
+- **Spoken version (my call):** about 3 sentences, no links. "Morning. 6 new
+  leads overnight. The best three: …. They're in the chat."
+- **On screen:** posted as an assistant message into a work stream named
+  "Morning report".
+- **When it's delivered (user decision):** once a day, the first time Akane is
+  ready in `--voice` or `--speak` mode. If Akane was already running when the
+  report was written, at the first wake word or typed message after that.
+  Delivery is recorded (front matter `delivered_at`), so it happens once across
+  restarts. In silent `akane dev` the report is posted in the chat, not
+  spoken, and still counts as delivered.
 - **On request:** "read my morning report", "show me the leads", "what was
-  number 3?" (`get_morning_report`, `get_lead`).
+  number 3?".
 
-### 7.4 Leads lifecycle
+### 7.5 Leads and numbering
 
-`new` → `shown` once a delivered report included it. From there it becomes
-`dismissed` ("dismiss 4"), `applied` ("I applied to 1"; also creates or updates
-a tracker entry), or `tailored` (when tailoring finishes). A lead never returns
-to `new`.
+- Each lead is `new`, then `shown` once its report is delivered, then
+  `dismissed` (also dismissed in the app), `applied` (the app tracks the
+  posting as an application) or `tailoring`/`tailored`. A lead never returns
+  to `new`.
+- Numbers belong to the **latest report**, whose header names its date.
+- A mid-day hunt appends to today's report, continuing the numbers.
+- Older leads can be referred to by company name.
 
-**Numbering:**
-- Numbers belong to the **latest report**, whose header names its date ("Leads
-  for Wed Nov 5"). "Number 3" always means number 3 in the latest report. If
-  the overnight hunt didn't run, that's the previous report, and its header
-  says so.
-- A mid-day hunt **appends to today's report**, continuing the numbering (7,
-  8, …). Its leads become `shown` when its announcement is delivered.
-- Leads from older reports can be referred to by company name.
-
-### 7.5 Tools (`applications_server`)
+### 7.6 Tools (`job_search_server`)
 
 | Tool | Does |
 |---|---|
-| `get_morning_report()` | today's report text (or the latest, if none today) |
-| `get_lead(n)` | one lead from today's report |
-| `list_leads(status?)` | leads by status |
-| `dismiss_lead(n)` | mark as dismissed |
-| `mark_applied(n)` | mark as applied and record in the tracker |
-| `start_hunt()` | run a hunt now, in the background; returns "On it" at once and announces when done |
-| `start_tailoring(n?)` | tailor the resume and cover letter for lead n, or the copied posting if no n (main spec §6.8); background; announced when done |
-| `make_pdfs(n)` | export that application's documents to PDF through Word |
-| `list_applications()` | the tracker |
-| `update_application(n_or_company, status)` | set `applied` / `interviewing` / `rejected` / `offer` / `closed` (main spec §6.8) |
-| `list_jobs()` | background hunts and tailoring runs: running, done or failed ("is my resume done yet?") |
+| `get_morning_report()` | latest report text |
+| `get_lead(n)` | one lead, with its fit and suggestion |
+| `dismiss_lead(n)` | dismiss here and in the app |
+| `mark_applied(n)` | track the posting as an application in the app; the lead becomes `applied` |
+| `update_application(company, status)` | move the application to the matching app stage (applied / interviewing / rejected / offer / closed) |
+| `list_applications()` | the app's applications and their stages |
+| `start_hunt()` | run `akane hunt` detached now; returns "On it"; announced when done |
+| `start_tailoring(n)` | track the lead as an application if it isn't already, start the app's pipeline with the active resume; returns "On it"; Akane follows it (§7.7) |
+| `answer_tailoring(n, answers)` | send the user's answers to the pipeline's clarifying questions |
+| `tailoring_status(n?)` | where tailoring stands ("is my resume done yet?") |
 
-Background tools (`start_hunt`, `start_tailoring`) **start a detached process**
-(`akane hunt`, `akane tailor <lead-or-clipboard>`, the same commands launchd
-and the user can run) and return within a second. Because the work is a
-separate process, it survives `akane stop` and restarts. Each run records
-itself in `<data_dir>/jobs.json` (id, kind, started, status, result path,
-error), the start of main spec §6.6's job runner that Phase 3 will extend. When
-a run finishes, it POSTs an announcement to the API. The API publishes
-`announce`, the orchestrator speaks it when idle, and it's posted into the
-"Morning report" stream. If Akane isn't running at that moment, the
-announcement waits in `jobs.json` and is delivered (once) the next time she
-starts, the same way the morning report is.
+Background work runs as detached `akane` commands (`hunt`, `tailor-watch`),
+recorded in `~/.akane/jobs.json`, so it survives `akane stop`. When a run
+finishes it POSTs `/api/v1/announce` to Akane's API. The orchestrator speaks
+it when idle (reusing the typed-reply speech queue) and posts it into the
+"Morning report" stream. If Akane is down, the announcement waits in
+`jobs.json` and is delivered once at the next start.
 
-### 7.6 Routing: act, don't offer
+### 7.7 Tailoring through the app's pipeline
 
-- **Agents:** `jobs` (`get_morning_report`, `get_lead`, `list_leads`,
-  `dismiss_lead`, `mark_applied`, `start_hunt`) and `apply` (`start_tailoring`,
-  `make_pdfs`, `list_applications`), enabled.
+1. `start_tailoring(n)`: the posting is tracked as an application, and the
+   pipeline job is started (`POST /pipeline/jobs` with the application and the
+   active resume).
+2. A detached `akane tailor-watch <job>` follows the job (polling
+   `/pipeline/jobs/{id}`, or using its SSE events).
+   - **`awaiting_clarification`:** the questions are posted into the "Morning
+     report" chat and announced ("I have 2 quick questions about the Acme
+     resume"). The user answers in chat or by voice; `answer_tailoring`
+     submits the answers and the watcher continues.
+   - **`awaiting_review`** (*my call*): Akane accepts the suggested edits.
+     She saves a new resume version with them (the app's in-place Word edit,
+     formatting kept) and generates a cover letter. Both files go to
+     `~/.akane/applications/<company>-<role>/`, along with `changes.md`
+     listing every edit. The job is marked complete and announced.
+   - The user can still open the app's UI to review, tweak or regenerate.
+   - **failed:** announced with the reason; the user can say "try again".
+3. **Nothing invented:** the app's edit prompts already work from the resume
+   text. Akane adds the check from main spec §6.8: every employer and date in
+   the tailored text must exist in the base resume, or the documents are
+   withheld and the reason announced.
+4. "Make PDFs of those": export through Word (main spec §6.8).
+
+### 7.8 Routing: act, don't offer
+
+- **Agents:** `jobs` (report, lead, dismiss, applied, status, hunt) and
+  `apply` (tailoring tools), enabled.
 - **Prompt rule:** "When the user asks to find jobs, tailor a resume, dismiss
   or mark a lead, call the tool immediately. Never ask 'would you like me
   to…?' for these."
-- The runtime's promise nudge (shipped earlier) is the backstop.
-- Total always-on tool count stays at or under 22, checked by test, so the 8B
-  router isn't swamped.
-
-### 7.7 Tailoring
-
-Unchanged from the main spec §6.8: structured edits applied to a copy of the
-.docx, nothing invented (checked against the master), a cover letter, a
-`changes.md`, and PDF through Word on request. New: the posting can come from a
-lead (its URL is fetched by Claude inside the tailoring call) as well as from
-the clipboard.
+- The runtime's promise nudge is the backstop.
+- The always-on tool count stays at or under 22, checked by test.
 
 ## 8. Phasing
 
 | Step | Delivers | Done when |
 |---|---|---|
-| J1 | master resume set up (with the user: Starbucks role and UW Tacoma enrollment added), `job_hunt:` config, `akane hunt`, the leads store, link validation, report file | `akane hunt` writes a report of real, loading links that fit §4, and a second run finds no repeats |
-| J2 | `applications_server` read and follow-up tools, morning-report delivery (spoken once a day plus the "Morning report" chat stream), `announce` event | starting `akane dev --speak` the morning after a hunt speaks the summary once and shows the full report; "dismiss 2" and "I applied to 1" work by voice and text |
-| J3 | `start_tailoring` and `make_pdfs`, background with announcement | "tailor my resume for 3" says "On it", later announces, and leaves a Word resume and cover letter that keep the original formatting and invent nothing |
-| J4 | `akane schedule install` (launchd), `start_hunt` on demand | the hunt runs unattended overnight; "find me jobs" mid-day starts one and announces the results |
+| J0 | pnd-job-search on this Mac: Homebrew Postgres, migrations, macOS build, `.env` with the user's JSearch key, billing guard, launchd agent (`akane jobs-app`), base resume uploaded and active, preflight warning | the app's `/health` answers after a reboot; `GET /job-postings/search?query=…` returns real postings; its UI shows the resume |
+| J1 | `job_hunt:` config, `akane hunt` (queries → screen → rules → report), `leads.json` | `akane hunt` writes a ranked report of real postings with fit lines, suggestions and links; a second run shows no repeats |
+| J2 | `job_search_server` report/lead/dismiss/applied/status tools, morning-report delivery, `/announce` | the morning after a hunt, starting `akane dev --speak` speaks the summary once and shows the full report; "dismiss 2" and "I applied to 1" work and show up in the app |
+| J3 | tailoring: `start_tailoring`, `tailor-watch`, clarifying questions in chat, accept edits, Word resume and cover letter in the job's folder, invented-fact check | "tailor my resume for 3" → "On it" → any questions asked in chat → announced → Word files with the original formatting, nothing invented |
+| J4 | `akane schedule install` (nightly hunt), `start_hunt` on demand | the hunt runs unattended overnight; "find me jobs" mid-day starts one and announces the results |
 
-This moves ahead of the main spec's notebook work (Phase 3), which it doesn't
-depend on. It does build Phase 3's announcement pathway (§7.5), which the
-notebook jobs can reuse later.
+This moves ahead of the main spec's notebook work (Phase 3). The
+announcement pathway it builds is reused by Phase 3 later.
 
 ## 9. Left to the builder
 
@@ -269,15 +294,16 @@ notebook jobs can reuse later.
 
 ## 10. Calls made by the designer (check these)
 
+- pnd-job-search is the engine. Akane reaches it only through its REST API, via an akane-repo tool server.
+- The app's backend runs as an always-on launchd agent (`akane jobs-app install`); Postgres runs via `brew services`.
+- The app's `claude` calls get the API-key-stripping billing guard (small pnd-job-search change).
 - Criteria live in `config.local.yaml` (`job_hunt:`), not `config.yaml`, because they're personal.
-- A launchd agent at 04:00 runs the hunt independently of Akane.
-- One Claude CLI call per hunt; links are verified by fetching them before they're shown.
-- The spoken report is ~3 sentences with no links; the full report goes in a "Morning report" chat stream.
-- Lead numbers are per day.
-- Pay below $25/h is dropped only when the posting *states* a lower rate; unknown pay is kept and marked "pay not listed".
-- Background tools run in threads in the MCP server and announce through a new `announce` API event.
-- Gig platforms count as leads (the user didn't object; easy to exclude with `job_hunt.kinds`).
-- Background runs are detached processes recorded in `jobs.json`. They survive restarts, and announcements wait for the next start if Akane is down.
-- The link check drops 404/410 and unreachable links, and keeps bot-blocked ones flagged "couldn't verify". Closed postings that still return 200 aren't detected in this build.
+- A nightly launchd job runs `akane hunt` at 04:00. JSearch queries are capped at 6 per hunt (free tier).
+- One Claude call per hunt screens and ranks all new postings.
+- Pay below $25/h is dropped only when the posting states it; dead links are dropped; bot-blocked links are flagged.
+- The spoken report is ~3 sentences with no links; the full report goes into a "Morning report" chat stream.
 - Numbers belong to the latest report; a mid-day hunt appends to it.
-- `update_application` added; follow-ups repeat weekly until the status changes.
+- For tailoring, Akane accepts the pipeline's suggested edits automatically and saves the Word files; the app's UI stays available for review.
+- Clarifying questions from the pipeline are asked in the "Morning report" chat.
+- Background work runs as detached `akane` commands recorded in `jobs.json`; announcements wait for the next start if Akane is down.
+- Gig platforms count (via JSearch results); excluded via `job_hunt.kinds` if unwanted.
