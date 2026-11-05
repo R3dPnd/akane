@@ -200,3 +200,19 @@ def test_dann_processes_are_not_akane():
     assert not discovery.is_akane_process(["uvicorn", "app.main:app"], dann_repo + "/runtime")
     assert not discovery.is_akane_process(["node", "vite"], dann_repo + "/runtime/ui")
     assert discovery.is_akane_process(["uvicorn", "app.main:app"], str(RUNTIME_DIR))
+
+
+@pytest.mark.parametrize("args", [["hunt"], ["schedule", "status"], ["jobs-app", "install"], ["stop"], ["restart"]])
+def test_one_shot_commands_are_not_a_running_akane(args):
+    # `akane stop` must not kill the nightly launchd hunt (review I-3).
+    assert not discovery.is_akane_process([PY, "akane.py", *args], cwd="/anywhere")
+
+
+@pytest.mark.parametrize("args", [["dev"], ["dev", "--speak"], ["code"], ["electron", "--voice"], ["start"]])
+def test_long_running_commands_are_a_running_akane(args):
+    assert discovery.is_akane_process([PY, "akane.py", *args], cwd="/anywhere")
+
+
+def test_restart_never_picks_a_one_shot_command():
+    procs = [_FakePsProcess(1, [PY, "akane.py", "hunt"]), _FakePsProcess(2, [PY, "akane.py", "dev", "--speak"])]
+    assert discovery.find_restartable_launcher_args(procs, exclude_pid=0) == ["dev", "--speak"]

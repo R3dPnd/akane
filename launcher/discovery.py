@@ -23,9 +23,11 @@ from launcher.paths import RUNTIME_DIR, UI_DIR
 # itself, or the `akane` symlink it's usually installed as (~/.local/bin/akane).
 LAUNCHER_SCRIPT_NAMES = {"akane.py", "akane"}
 
-# Launcher subcommands that are one-shot actions, not a running Akane — never
-# something `akane restart` should relaunch.
-_ONE_SHOT_COMMANDS = {"stop", "restart"}
+# Launcher subcommands that ARE a running Akane (API/UI/voice). Everything else
+# (stop, restart, hunt, schedule, jobs-app) is a one-shot action: `akane stop`
+# leaves it alone — the nightly launchd hunt must survive a stop — and
+# `akane restart` never relaunches it.
+_RUNNING_COMMANDS = {"dev", "code", "electron", "start"}
 
 _GONE = (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess)
 
@@ -49,11 +51,12 @@ def launcher_args(cmdline: list[str]) -> list[str] | None:
 
 
 def is_akane_process(cmdline: list[str], cwd: str | None) -> bool:
-    """Whether a process with this command line and working directory belongs
-    to Akane: the launcher (any subcommand, any cwd), or uvicorn/Vite/Electron
-    running from inside this repo's runtime/ submodule."""
-    if launcher_args(cmdline) is not None:
-        return True
+    """Whether a process with this command line and working directory is part
+    of a running Akane: the launcher running dev/electron/start (any cwd), or
+    uvicorn/Vite/Electron from inside this repo's runtime/ submodule."""
+    args = launcher_args(cmdline)
+    if args:
+        return args[0] in _RUNNING_COMMANDS
     joined = " ".join(cmdline).lower()
     if cwd == str(RUNTIME_DIR) and "app.main:app" in joined:
         return True
@@ -98,7 +101,7 @@ def find_restartable_launcher_args(processes: Iterable[psutil.Process], exclude_
             args = launcher_args(proc.cmdline())
         except _GONE:
             continue
-        if args and args[0] not in _ONE_SHOT_COMMANDS:
+        if args and args[0] in _RUNNING_COMMANDS:
             return args
     return None
 
