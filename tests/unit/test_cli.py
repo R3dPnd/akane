@@ -26,6 +26,7 @@ def recorded(monkeypatch):
     monkeypatch.setattr(commands, "cmd_restart", recorder("restart", 14))
     monkeypatch.setattr(commands, "cmd_jobs_app", recorder("jobs-app", 15))
     monkeypatch.setattr(commands, "cmd_hunt", recorder("hunt", 16))
+    monkeypatch.setattr(commands, "cmd_schedule", recorder("schedule", 17))
     return calls
 
 
@@ -42,6 +43,9 @@ def recorded(monkeypatch):
         (["start"], ("start", (), {}), 12),
         (["stop"], ("stop", (), {}), 13),
         (["hunt"], ("hunt", (), {}), 16),
+        (["schedule", "install"], ("schedule", ("install",), {}), 17),
+        (["schedule", "uninstall"], ("schedule", ("uninstall",), {}), 17),
+        (["schedule", "status"], ("schedule", ("status",), {}), 17),
         (["jobs-app", "install"], ("jobs-app", ("install",), {"resume": None}), 15),
         (["jobs-app", "uninstall"], ("jobs-app", ("uninstall",), {"resume": None}), 15),
         (["jobs-app", "status"], ("jobs-app", ("status",), {"resume": None}), 15),

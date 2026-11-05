@@ -210,9 +210,40 @@ Your criteria live in `config.local.yaml` under `job_hunt:` (see
 `config.local.example.yaml`): pay floor, locations, kinds of work, schedule,
 deal-breakers, and how many leads to keep.
 
-Coming next: the report read to you in the morning, "tailor my resume for
-3", "dismiss 2", "I applied to 1", and the hunt running automatically
-overnight.
+**Every night, on its own:**
+
+```bash
+akane schedule install    # run `akane hunt` daily at job_hunt.run_at (default 04:00)
+akane schedule status     # scheduled? when? last run's result
+akane schedule uninstall
+```
+
+If the Mac is asleep at that time, the hunt runs as soon as it wakes.
+
+**The morning report:** the first time Akane is ready in the morning
+(`akane dev --speak` or `--voice`), she reads a short summary once: "Morning.
+8 new leads overnight. The best three: …". If she was already running, she
+reads it at your first "ok Akane" or typed message instead; she never speaks
+up on her own overnight. The full report, with links, goes into the **Morning
+report** chat. Restarting doesn't repeat it, and in silent `akane dev` it only
+goes to the chat.
+
+**Then just ask** (voice or typed):
+
+| Say | What happens |
+|---|---|
+| "find me jobs" | a hunt starts now; Akane tells you when it's done and posts the new leads |
+| "read my morning report" | the latest report |
+| "what was number 3?" | that lead's pay, fit, suggestion and link |
+| "dismiss 2" | gone for good (also dismissed in your job-search app) |
+| "I applied to 1" | tracked in your job-search app at stage Applied |
+| "Acme rejected me" / "I'm interviewing with Acme" / "Acme made an offer" / "close Acme" | updates that application's stage and status |
+
+Numbers always refer to the latest report. If a hunt finishes while Akane
+isn't running, she tells you the next time she starts. Two hunts never run
+at once.
+
+Coming next: "tailor my resume for 3".
 
 ## 7. The dashboard
 

@@ -58,6 +58,10 @@ def build_parser() -> argparse.ArgumentParser:
     hunt = subparsers.add_parser("hunt", help="run a job hunt now and write the morning report")
     hunt.set_defaults(run=lambda args: commands.cmd_hunt())
 
+    sched = subparsers.add_parser("schedule", help="run the job hunt nightly (launchd)")
+    sched.add_argument("action", choices=["install", "uninstall", "status"])
+    sched.set_defaults(run=lambda args: commands.cmd_schedule(args.action))
+
     jobs = subparsers.add_parser("jobs-app", help="run the pnd-job-search app as a background service")
     jobs.add_argument("action", choices=["install", "uninstall", "status", "load-resume"])
     jobs.add_argument("resume", nargs="?", help="path to a .docx (load-resume only)")

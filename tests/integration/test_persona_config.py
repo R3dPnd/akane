@@ -222,3 +222,25 @@ def test_local_example_documents_job_hunt():
 
 def test_job_search_base_url_configured(config):
     assert config["job_search"]["base_url"] == "http://localhost:8080/api/v1"
+
+
+ACT_DONT_OFFER = ("When the user asks to find jobs, read the morning report, or dismiss, apply to or update a lead, "
+                  "call the tool immediately. Never ask \"would you like me to…?\" for these.")
+
+
+def test_job_search_tools_exposed_and_routed(config):
+    (server,) = [s for s in config["mcp"]["servers"] if s["name"] == "job_search"]
+    assert server["always_on"] and server["env"]["PND_JOB_SEARCH_URL"] == "http://localhost:8080/api/v1"
+    (agent,) = [a for a in config["agents"] if a["name"] == "jobs"]
+    assert agent.get("enabled", True)
+    assert set(agent["tools"]) <= set(server["tools"])
+    assert {"get_morning_report", "dismiss_lead", "mark_applied", "update_application", "start_hunt"} <= set(agent["tools"])
+
+
+def test_always_on_tool_count_stays_small(config):
+    always_on = sum(len(s["tools"]) for s in config["mcp"]["servers"] if s.get("always_on"))
+    assert always_on + 3 <= 22  # + list/enable/disable_module meta-tools
+
+
+def test_prompt_says_act_dont_offer(config):
+    assert " ".join(ACT_DONT_OFFER.split()) in " ".join(config["ollama"]["system_prompt"].split())

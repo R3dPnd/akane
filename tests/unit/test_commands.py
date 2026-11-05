@@ -299,3 +299,12 @@ class TestHunt:
 
         monkeypatch.setattr(commands.subprocess, "run", lambda argv, **kw: subprocess.CompletedProcess(argv, 3))
         assert commands.cmd_hunt() == 3
+
+
+def test_schedule_actions_dispatch(monkeypatch):
+    from launcher import schedule
+
+    monkeypatch.setattr(schedule, "cmd_install", lambda: 7)
+    monkeypatch.setattr(schedule, "cmd_uninstall", lambda: 8)
+    monkeypatch.setattr(schedule, "cmd_status", lambda: 9)
+    assert [commands.cmd_schedule(a) for a in ("install", "uninstall", "status")] == [7, 8, 9]

@@ -65,6 +65,9 @@ ollama:
       When you saved something, say so and where ("saved that as a reminder").
     - Never call the same tool twice in one turn.
     - You can't add calendar events yet; if asked, say that's coming soon.
+    - When the user asks to find jobs, read the morning report, or dismiss,
+      apply to or update a lead, call the tool immediately. Never ask
+      "would you like me to…?" for these.
   # Low on purpose: at 0.7 the 7B router often skipped the tool call and still
   # said it had acted ("I've set a reminder"). 0.1 measured far more reliable.
   temperature: 0.1
@@ -115,6 +118,15 @@ agents:
       The user's own curated knowledge base (pnd-notes): "what do my notes
       say about X", "what do I know about Y". Search first, then read the
       best match.
+    enabled: true
+
+  - name: jobs
+    tools: [get_morning_report, get_lead, dismiss_lead, mark_applied, update_application, start_hunt]
+    description: >
+      The job hunt: "find me jobs" (start_hunt), "read my morning report",
+      "what was number 3?" (get_lead), "dismiss 2", "I applied to 1"
+      (mark_applied), "Acme rejected me" / "I'm interviewing with Acme"
+      (update_application). Numbers are the latest morning report's.
     enabled: true
 
   # ── Later phases ──────────────────────────────────────────────────────────
@@ -206,6 +218,15 @@ mcp:
       description: "The user's curated knowledge base — read-only"
       always_on: true
       tools: [list_areas, search_notes, get_note]
+
+    - name: job_search
+      command: ../.venv/bin/python
+      args: ["-m", "integrations.servers.job_search_server"]
+      description: "Job hunt follow-ups over pnd-job-search: morning report, leads, applications"
+      always_on: true
+      env:
+        PND_JOB_SEARCH_URL: http://localhost:8080/api/v1
+      tools: [get_morning_report, get_lead, dismiss_lead, mark_applied, update_application, start_hunt]
 
     - name: schedule
       command: ../.venv/bin/python

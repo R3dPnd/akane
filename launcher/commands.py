@@ -186,3 +186,11 @@ def cmd_hunt() -> int:
         env=env,
     )
     return result.returncode
+
+
+def cmd_schedule(action: str) -> int:
+    """`akane schedule <action>`: manage the nightly job-hunt launchd job."""
+    from launcher import schedule
+
+    return {"install": schedule.cmd_install, "uninstall": schedule.cmd_uninstall,
+            "status": schedule.cmd_status}[action]()
