@@ -65,6 +65,10 @@ ollama:
       When you saved something, say so and where ("saved that as a reminder").
     - Never call the same tool twice in one turn.
     - You can't add calendar events yet; if asked, say that's coming soon.
+    - If you can't give the full answer yourself in a sentence or two (a plan,
+      a schedule, a comparison, anything needing research), call think_deeply
+      right away. Never promise a plan or answer you haven't produced, and
+      never tell the user to look it up themselves.
     - When the user asks to find jobs, read the morning report, or dismiss,
       apply to or update a lead, call the tool immediately. Never ask
       "would you like me to…?" for these.
@@ -142,9 +146,15 @@ agents:
     description: "Turns a goal or project idea into an action plan saved to the notebook."
     enabled: false
 
-  - name: deep_think   # Phase 3: "think harder about that" → Claude in the background
-    description: "Sends the current conversation to Claude for a deeper answer, announced when ready."
-    enabled: false
+  - name: deep_think
+    tools: [think_deeply]
+    description: >
+      Anything that needs real work rather than a sentence or two: plans and
+      schedules (a degree plan, a study plan, a project plan), comparisons,
+      researched or multi-step answers, or when the user says "ask Claude",
+      "think harder", "show me the plan". Claude works on it in the
+      background; the answer is posted in this chat and announced.
+    enabled: true
 
   - name: plan_day     # Phase 3 (calendar in 3d)
     description: "Plans the day from reminders, open threads, and (later) the calendar."
@@ -194,9 +204,9 @@ mcp:
     - name: claude
       command: ../.venv/bin/python
       args: ["-m", "integrations.servers.claude_server"]
-      description: "Web lookups through the claude CLI (subscription, no API key)"
+      description: "Web lookups and think_deeply through the claude CLI (subscription, no API key)"
       always_on: true
-      tools: [web_search]
+      tools: [web_search, think_deeply]
 
     - name: reminders
       command: ../.venv/bin/python

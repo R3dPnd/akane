@@ -86,7 +86,7 @@ def test_agents_compile_into_prompt(config):
     section = build_routing_prompt(config["agents"])
     for name in ("local", "lookup", "apps", "reminders", "recall"):
         assert name in section
-    for later in ("plan_day", "deep_think", "apply"):
+    for later in ("plan_day", "apply"):  # deep_think was brought forward (think_deeply)
         assert later not in section, f"{later} is a later phase and must stay disabled"
 
 
@@ -244,3 +244,12 @@ def test_always_on_tool_count_stays_small(config):
 
 def test_prompt_says_act_dont_offer(config):
     assert " ".join(ACT_DONT_OFFER.split()) in " ".join(config["ollama"]["system_prompt"].split())
+
+
+def test_deep_think_is_enabled_through_claude(config):
+    (agent,) = [a for a in config["agents"] if a["name"] == "deep_think"]
+    assert agent.get("enabled", True) and agent["tools"] == ["think_deeply"]
+    (claude,) = [s for s in config["mcp"]["servers"] if s["name"] == "claude"]
+    assert "think_deeply" in claude["tools"]
+    prompt = " ".join(config["ollama"]["system_prompt"].split())
+    assert "think_deeply" in prompt and "never promise" in prompt.lower()
