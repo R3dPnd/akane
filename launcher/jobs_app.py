@@ -126,6 +126,16 @@ def cmd_install() -> int:
     }
     env_path.write_text(merge_env(env_path.read_text() if env_path.is_file() else "", owned))
 
+    # The backend doesn't migrate itself; bring the schema up to date first
+    # (cmd/migrate reads DATABASE_URL from the .env just written).
+    migrate = subprocess.run(["go", "run", "./cmd/migrate", "up"], cwd=backend, capture_output=True, text=True)
+    if migrate.returncode != 0:
+        print(f"[akane] pnd-job-search migrations failed:\n{migrate.stderr.strip()}\n"
+              "[akane] Is Postgres running with a job_search database? "
+              "brew services start postgresql@16 && $(brew --prefix postgresql@16)/bin/createdb job_search",
+              flush=True)
+        return 1
+
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     PLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
     PLIST_PATH.write_bytes(plistlib.dumps(build_plist(backend / "bin" / "pnd-job-search", backend, _path_env(), LOG_DIR)))

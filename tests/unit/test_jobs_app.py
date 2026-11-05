@@ -70,6 +70,10 @@ def test_install_writes_owned_env_lines_and_the_plist(app_tree, monkeypatch):
     assert jobs_app.PLIST_PATH.exists()
     assert ["go", "build", "-o", "bin/pnd-job-search", "."] in calls
     assert any(c[:2] == ["launchctl", "bootstrap"] for c in calls)
+    # The schema is brought up to date before the app starts (the backend
+    # doesn't migrate itself).
+    migrate = calls.index(["go", "run", "./cmd/migrate", "up"])
+    assert migrate < next(i for i, c in enumerate(calls) if c[:2] == ["launchctl", "bootstrap"])
 
 
 def test_install_fails_cleanly_when_the_build_fails(app_tree, monkeypatch, capsys):
@@ -180,3 +184,18 @@ def test_load_resume_reports_api_failures(tmp_path, monkeypatch, upload, activat
     monkeypatch.setattr(jobs_app.requests, "post",
                         lambda url, **kw: _Resp(upload, {"id": "r1"}) if url.endswith("/resumes") else _Resp(activate, {}))
     assert jobs_app.cmd_load_resume(resume) == 1
+
+
+def test_install_stops_when_migrations_fail(app_tree, monkeypatch, capsys):
+    calls = []
+
+    def run(argv, **k):
+        calls.append(argv)
+        failed = argv[:3] == ["go", "run", "./cmd/migrate"]
+        return subprocess.CompletedProcess(argv, 1 if failed else 0, "", "database \"job_search\" does not exist")
+
+    monkeypatch.setattr(jobs_app.subprocess, "run", run)
+    assert jobs_app.cmd_install() == 1
+    out = capsys.readouterr().out
+    assert "migrations failed" in out.lower() and "createdb job_search" in out
+    assert not any(c[:2] == ["launchctl", "bootstrap"] for c in calls)

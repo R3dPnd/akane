@@ -173,7 +173,10 @@ akane jobs-app status                           # running? healthy? JSearch key 
 akane jobs-app uninstall                        # stop the background service
 ```
 
-The app needs PostgreSQL (`brew services start postgresql@16`) and a
+The app needs PostgreSQL with a `job_search` database (once:
+`brew install postgresql@16 && brew services start postgresql@16 &&
+$(brew --prefix postgresql@16)/bin/createdb job_search`; `install` then keeps
+its schema up to date) and a
 **JSearch** key in `~/Git/r3dpnd/pnd-job-search/.env`:
 
 - A key from **OpenWeb Ninja** (openwebninja.com, the one you have):
