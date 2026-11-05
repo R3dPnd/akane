@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import os
+import sys
 
 from launcher import commands
 
@@ -23,6 +25,18 @@ def _add_voice_flags(subparser: argparse.ArgumentParser, voice_help: str) -> Non
         action="store_true",
         help="read replies to typed chat aloud, without ever listening (no mic)",
     )
+
+
+def relaunch(args: list[str]) -> int:
+    """Replace this process with `akane <args>`. Relaunching in-process left
+    the command line saying `akane restart`, so the next `akane restart`
+    found nothing restartable."""
+    from launcher import paths
+
+    sys.stdout.flush()  # execv discards anything still buffered ("Restarting with args…")
+    sys.stderr.flush()
+    os.execv(sys.executable, [sys.executable, str(paths.REPO_ROOT / "akane.py"), *args])
+    return 0  # only reached when execv is stubbed out (tests)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -68,7 +82,7 @@ def build_parser() -> argparse.ArgumentParser:
     jobs.set_defaults(run=lambda args: commands.cmd_jobs_app(args.action, resume=args.resume))
 
     restart = subparsers.add_parser("restart", help="stop and relaunch with the same mode/flags")
-    restart.set_defaults(run=lambda args: commands.cmd_restart(relaunch=main))
+    restart.set_defaults(run=lambda args: commands.cmd_restart(relaunch=relaunch))
 
     return parser
 

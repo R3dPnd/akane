@@ -57,11 +57,19 @@ def test_dispatches_each_subcommand(recorded, argv, expected_call, expected_code
     assert recorded == [expected_call]
 
 
-def test_restart_relaunches_through_the_cli_itself(recorded):
+def test_restart_relaunches_as_a_fresh_akane_process(recorded, monkeypatch):
+    # Relaunching in-process left the command line saying `akane restart`, so
+    # a second `akane restart` found nothing restartable. The relaunch must
+    # replace this process with `akane <original args>`.
+    from launcher import paths
+
     assert cli.main(["restart"]) == 14
     ((name, _args, kwargs),) = recorded
     assert name == "restart"
-    assert kwargs["relaunch"] is cli.main
+    execs = []
+    monkeypatch.setattr(cli.os, "execv", lambda exe, argv: execs.append((exe, argv)))
+    kwargs["relaunch"](["dev", "--speak"])
+    assert execs == [(cli.sys.executable, [cli.sys.executable, str(paths.REPO_ROOT / "akane.py"), "dev", "--speak"])]
 
 
 def test_no_arguments_prints_usage_and_succeeds(recorded, capsys):
