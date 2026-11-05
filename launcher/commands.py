@@ -158,3 +158,18 @@ def cmd_restart(relaunch: Callable[[list[str]], int]) -> int:
     cmd_stop()
     time.sleep(1)  # let the OS release the API/UI ports before rebinding them
     return relaunch(args)
+
+
+def cmd_jobs_app(action: str, resume: str | None = None) -> int:
+    """`akane jobs-app <action>`: manage the pnd-job-search launchd agent."""
+    from pathlib import Path
+
+    from launcher import jobs_app
+
+    if action == "load-resume":
+        if not resume:
+            print("[akane] usage: akane jobs-app load-resume <path/to/Resume.docx>")
+            return 2
+        return jobs_app.cmd_load_resume(Path(resume).expanduser())
+    return {"install": jobs_app.cmd_install, "uninstall": jobs_app.cmd_uninstall,
+            "status": jobs_app.cmd_status}[action]()

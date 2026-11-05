@@ -45,11 +45,13 @@ def _config():
     }
 
 
-def _check(config=None, voice=True, busy=(), models=("akane-router:latest",), speak=False, electron=False):
+def _check(config=None, voice=True, busy=(), models=("akane-router:latest",), speak=False, electron=False,
+           job_app_up=True):
     return preflight.check(
         voice,
         speak=speak,
         electron=electron,
+        job_app_healthy=lambda url: job_app_up,
         config=_config() if config is None else config,
         ports=[API, UI],
         port_in_use=lambda port: port in busy,
@@ -151,6 +153,19 @@ def test_broken_electron_is_an_error_when_a_window_is_needed(runtime):
     assert "scripts/fix_electron.sh" in problem.fix
 
 
+def test_unreachable_job_app_is_only_a_warning(runtime):
+    config = _config()
+    config["job_search"] = {"base_url": "http://localhost:8080/api/v1"}
+    (problem,) = _check(config, job_app_up=False)
+    assert problem.level == "warning"
+    assert "http://localhost:8080/api/v1" in problem.message
+    assert "akane jobs-app install" in problem.fix
+
+
+def test_no_job_search_config_means_no_job_app_check(runtime):
+    assert _check(job_app_up=False) == []
+
+
 class TestRealProbes:
     def test_port_in_use_sees_a_bound_socket(self):
         with socket.socket() as s:
@@ -204,11 +219,27 @@ class TestRealProbes:
         assert preflight.ollama_models() is None
 
 
+class TestJobAppProbe:
+    def test_http_ok(self, monkeypatch):
+        import requests
+
+        monkeypatch.setattr(requests, "get", lambda url, timeout: type("R", (), {"status_code": 200})())
+        assert preflight.http_ok("http://app/api/v1") is True
+
+    def test_http_ok_on_error(self, monkeypatch):
+        import requests
+
+        def boom(url, timeout):
+            raise requests.ConnectionError()
+        monkeypatch.setattr(requests, "get", boom)
+        assert preflight.http_ok("http://app/api/v1") is False
+
+
 class TestRun:
     def test_run_checks_both_ports_for_dev(self, monkeypatch):
         seen = {}
 
-        def fake_check(voice, *, speak, electron, config, ports, port_in_use, ollama_models):
+        def fake_check(voice, *, speak, electron, config, ports, port_in_use, ollama_models, job_app_healthy):
             seen.update(voice=voice, ports=ports)
             return []
 

@@ -77,6 +77,22 @@ def _check_electron() -> list[Problem]:
                     "run scripts/fix_electron.sh")]
 
 
+def _check_job_app(config: dict[str, Any], healthy: Callable[[str], bool]) -> list[Problem]:
+    url = ((config.get("job_search") or {}).get("base_url") or "").rstrip("/")
+    if not url or healthy(url):
+        return []
+    return [Problem("warning", f"job search app not reachable at {url}", "run `akane jobs-app install`")]
+
+
+def http_ok(base_url: str) -> bool:
+    try:
+        import requests
+
+        return requests.get(f"{base_url}/health", timeout=2).status_code == 200
+    except Exception:
+        return False
+
+
 def check(
     voice: bool,
     *,
@@ -86,6 +102,7 @@ def check(
     ports: list[int],
     port_in_use: Callable[[int], bool],
     ollama_models: Callable[[], list[str] | None],
+    job_app_healthy: Callable[[str], bool] = lambda url: True,
 ) -> list[Problem]:
     """Everything wrong with this machine for starting Akane, errors first."""
     problems = [
@@ -100,6 +117,7 @@ def check(
     if electron:
         problems += _check_electron()
     problems += _check_router(config, ollama_models()) + _check_node_servers(config)
+    problems += _check_job_app(config, job_app_healthy)
     return problems
 
 
@@ -150,5 +168,5 @@ def run(voice: bool, ui: bool, speak: bool = False, electron: bool = False) -> b
     """Check this machine with the real probes and report; False means don't start."""
     ports = [paths.API_PORT, paths.UI_PORT] if ui else [paths.API_PORT]
     problems = check(voice, speak=speak, electron=electron, config=_load_config(), ports=ports,
-                     port_in_use=port_in_use, ollama_models=ollama_models)
+                     port_in_use=port_in_use, ollama_models=ollama_models, job_app_healthy=http_ok)
     return report(problems)

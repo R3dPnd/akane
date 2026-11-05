@@ -251,3 +251,27 @@ class TestSpeakMode:
         harness.spawned.clear()
         assert commands.cmd_electron(speak=True) == 0
         assert harness.spawned[0] == ("api", False, True, "speak")
+
+
+class TestJobsApp:
+    def test_actions_dispatch_to_jobs_app(self, monkeypatch):
+        from launcher import jobs_app
+
+        monkeypatch.setattr(jobs_app, "cmd_install", lambda: 7)
+        monkeypatch.setattr(jobs_app, "cmd_status", lambda: 8)
+        assert commands.cmd_jobs_app("install") == 7
+        assert commands.cmd_jobs_app("status") == 8
+
+    def test_load_resume_expands_the_path(self, monkeypatch):
+        from pathlib import Path
+
+        from launcher import jobs_app
+
+        seen = []
+        monkeypatch.setattr(jobs_app, "cmd_load_resume", lambda p: seen.append(p) or 0)
+        assert commands.cmd_jobs_app("load-resume", resume="~/Resume.docx") == 0
+        assert seen == [Path.home() / "Resume.docx"]
+
+    def test_load_resume_needs_a_path(self, capsys):
+        assert commands.cmd_jobs_app("load-resume") == 2
+        assert "usage" in capsys.readouterr().out

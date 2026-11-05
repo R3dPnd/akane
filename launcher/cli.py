@@ -55,6 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     stop.set_defaults(run=lambda args: commands.cmd_stop())
 
+    jobs = subparsers.add_parser("jobs-app", help="run the pnd-job-search app as a background service")
+    jobs.add_argument("action", choices=["install", "uninstall", "status", "load-resume"])
+    jobs.add_argument("resume", nargs="?", help="path to a .docx (load-resume only)")
+    jobs.set_defaults(run=lambda args: commands.cmd_jobs_app(args.action, resume=args.resume))
+
     restart = subparsers.add_parser("restart", help="stop and relaunch with the same mode/flags")
     restart.set_defaults(run=lambda args: commands.cmd_restart(relaunch=main))
 

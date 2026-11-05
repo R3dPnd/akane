@@ -24,6 +24,7 @@ def recorded(monkeypatch):
     monkeypatch.setattr(commands, "cmd_start", recorder("start", 12))
     monkeypatch.setattr(commands, "cmd_stop", recorder("stop", 13))
     monkeypatch.setattr(commands, "cmd_restart", recorder("restart", 14))
+    monkeypatch.setattr(commands, "cmd_jobs_app", recorder("jobs-app", 15))
     return calls
 
 
@@ -39,6 +40,10 @@ def recorded(monkeypatch):
         (["electron", "--speak"], ("electron", (), {"voice": False, "speak": True}), 11),
         (["start"], ("start", (), {}), 12),
         (["stop"], ("stop", (), {}), 13),
+        (["jobs-app", "install"], ("jobs-app", ("install",), {"resume": None}), 15),
+        (["jobs-app", "uninstall"], ("jobs-app", ("uninstall",), {"resume": None}), 15),
+        (["jobs-app", "status"], ("jobs-app", ("status",), {"resume": None}), 15),
+        (["jobs-app", "load-resume", "/r/Resume.docx"], ("jobs-app", ("load-resume",), {"resume": "/r/Resume.docx"}), 15),
     ],
 )
 def test_dispatches_each_subcommand(recorded, argv, expected_call, expected_code):

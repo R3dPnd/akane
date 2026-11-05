@@ -268,6 +268,11 @@ mcp:
         edit_script: [get_editor_errors]
         attach_script: [get_editor_errors]
 
+job_search:
+  # pnd-job-search (the user's job-hunting app), run by `akane jobs-app install`.
+  base_url: http://localhost:8080/api/v1
+  app_dir: ../../pnd-job-search   # relative to runtime/, like every path here
+
 ux:
   play_listening_sound: true
   play_thinking_sound: false
