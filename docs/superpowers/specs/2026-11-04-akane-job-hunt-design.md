@@ -136,9 +136,13 @@ applications.json             application tracker (main spec §6.8)
 3. Validate in code, not by trusting the model:
    - parse the JSON, dropping malformed entries;
    - drop any URL already known;
-   - **fetch each URL** (HTTP GET, short timeout, normal browser user agent)
-     and drop anything that doesn't return 2xx/3xx, which guards against
-     invented links;
+   - **check each URL** (HTTP GET, short timeout, normal browser user agent):
+     - drop it on 404/410, a DNS failure or a connection failure (invented or
+       dead links);
+     - keep and show it on 2xx/3xx;
+     - keep it but mark it "couldn't verify, site blocks bots" on 401/403/429
+       or a bot challenge, so leads from the big boards (Indeed, LinkedIn,
+       Cloudflare-fronted sites) aren't silently dropped;
    - drop leads whose stated pay is clearly below the floor.
 4. Append the survivors to `leads.json` with `status: new`, a `found_at` date
    and a daily number (1…n). Write `reports/<today>.md`.
@@ -153,8 +157,10 @@ spec §6.6 rule "one CLI call per job".
 
 - **Contents:** a header line, then for each new lead its number, title,
   company or platform, pay, schedule, remote/location, the "fit" line and the
-  link. After that, a "Follow-ups" section listing tracked applications marked
-  applied more than 7 days ago with no update (main spec §6.8 tracker).
+  link. After that, a "Follow-ups" section listing tracked applications still at
+  `applied` 7, 14, 21… days after the last status change. So each one comes up
+  once a week until the user updates it ("I heard back from Acme", "Acme
+  rejected me") or it's `closed`.
 - **Spoken version (my call):** about 3 sentences. "Morning. 6 new leads
   overnight. The best three: a remote AI code evaluation contract at about
   forty an hour, …. They're in the chat." Links are never read aloud.
@@ -178,8 +184,16 @@ spec §6.6 rule "one CLI call per job".
 `new` → `shown` once a delivered report included it. From there it becomes
 `dismissed` ("dismiss 4"), `applied` ("I applied to 1"; also creates or updates
 a tracker entry), or `tailored` (when tailoring finishes). A lead never returns
-to `new`. Numbers refer to **today's** report; "number 3" always means today's
-number 3. Older leads can be referred to by company name.
+to `new`.
+
+**Numbering:**
+- Numbers belong to the **latest report**, whose header names its date ("Leads
+  for Wed Nov 5"). "Number 3" always means number 3 in the latest report. If
+  the overnight hunt didn't run, that's the previous report, and its header
+  says so.
+- A mid-day hunt **appends to today's report**, continuing the numbering (7,
+  8, …). Its leads become `shown` when its announcement is delivered.
+- Leads from older reports can be referred to by company name.
 
 ### 7.5 Tools (`applications_server`)
 
@@ -194,12 +208,20 @@ number 3. Older leads can be referred to by company name.
 | `start_tailoring(n?)` | tailor the resume and cover letter for lead n, or the copied posting if no n (main spec §6.8); background; announced when done |
 | `make_pdfs(n)` | export that application's documents to PDF through Word |
 | `list_applications()` | the tracker |
+| `update_application(n_or_company, status)` | set `applied` / `interviewing` / `rejected` / `offer` / `closed` (main spec §6.8) |
+| `list_jobs()` | background hunts and tailoring runs: running, done or failed ("is my resume done yet?") |
 
-Background tools (`start_hunt`, `start_tailoring`) run in a thread inside the
-server process, return within a second, and POST an announcement to the API
-when they finish. The API publishes `announce`, the orchestrator speaks it when
-idle, and it's also posted into the chat stream it came from (or "Morning
-report").
+Background tools (`start_hunt`, `start_tailoring`) **start a detached process**
+(`akane hunt`, `akane tailor <lead-or-clipboard>`, the same commands launchd
+and the user can run) and return within a second. Because the work is a
+separate process, it survives `akane stop` and restarts. Each run records
+itself in `<data_dir>/jobs.json` (id, kind, started, status, result path,
+error), the start of main spec §6.6's job runner that Phase 3 will extend. When
+a run finishes, it POSTs an announcement to the API. The API publishes
+`announce`, the orchestrator speaks it when idle, and it's posted into the
+"Morning report" stream. If Akane isn't running at that moment, the
+announcement waits in `jobs.json` and is delivered (once) the next time she
+starts, the same way the morning report is.
 
 ### 7.6 Routing: act, don't offer
 
@@ -255,3 +277,7 @@ notebook jobs can reuse later.
 - Pay below $25/h is dropped only when the posting *states* a lower rate; unknown pay is kept and marked "pay not listed".
 - Background tools run in threads in the MCP server and announce through a new `announce` API event.
 - Gig platforms count as leads (the user didn't object; easy to exclude with `job_hunt.kinds`).
+- Background runs are detached processes recorded in `jobs.json`. They survive restarts, and announcements wait for the next start if Akane is down.
+- The link check drops 404/410 and unreachable links, and keeps bot-blocked ones flagged "couldn't verify". Closed postings that still return 200 aren't detected in this build.
+- Numbers belong to the latest report; a mid-day hunt appends to it.
+- `update_application` added; follow-ups repeat weekly until the status changes.
