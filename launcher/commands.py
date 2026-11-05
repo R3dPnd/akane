@@ -7,6 +7,7 @@ Modules are referenced as `processes.spawn_api(...)`, `paths.API_PORT`, etc.
 from __future__ import annotations
 
 import os
+import subprocess
 import threading
 import time
 import webbrowser
@@ -173,3 +174,15 @@ def cmd_jobs_app(action: str, resume: str | None = None) -> int:
         return jobs_app.cmd_load_resume(Path(resume).expanduser())
     return {"install": jobs_app.cmd_install, "uninstall": jobs_app.cmd_uninstall,
             "status": jobs_app.cmd_status}[action]()
+
+
+def cmd_hunt() -> int:
+    """`akane hunt`: run one job hunt now and write the morning report (what
+    the nightly launchd job runs). Output streams to this terminal."""
+    env = processes.build_api_env(voice=False)
+    result = subprocess.run(
+        [str(paths.VENV_BIN / "python"), "-m", "integrations.job_search", "hunt"],
+        cwd=str(paths.RUNTIME_DIR),
+        env=env,
+    )
+    return result.returncode

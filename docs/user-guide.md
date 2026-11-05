@@ -161,6 +161,50 @@ She never writes to your pnd-notes; that knowledge base is read-only to her.
 
 ---
 
+## 6b. Job hunting
+
+Akane finds part-time and gig work that fits your schedule, using your
+**pnd-job-search** app as the engine. It's set up once:
+
+```bash
+akane jobs-app install                          # build the app and run it in the background (always on)
+akane jobs-app load-resume ~/Downloads/Resume.docx   # make this your active resume
+akane jobs-app status                           # running? healthy? JSearch key set? (never prints the key)
+akane jobs-app uninstall                        # stop the background service
+```
+
+The app needs PostgreSQL (`brew services start postgresql@16`), and a
+**JSearch** key from RapidAPI in `~/Git/r3dpnd/pnd-job-search/.env` as
+`JOBS_API_KEY=…`. Without the key, Akane still finds gig work but no
+job-board postings, and the report says so.
+
+**Run a hunt:**
+
+```bash
+akane hunt
+```
+
+1. Searches the job boards (through JSearch) for your `job_hunt` kinds in each
+   of your locations.
+2. Asks Claude to find async gig work: AI code evaluation and training, code
+   review, bounties.
+3. Has Claude screen everything against your resume and constraints.
+4. Drops anything under your pay floor (yearly and monthly pay are converted
+   to hourly first) or with a dead link.
+5. Writes the top leads to `~/.akane/applications/reports/<date>.md`, each
+   with pay, a score, why it fits, a suggestion and the link.
+
+Leads already reported never come back. Running it again the same day adds
+any new ones to the same report, continuing the numbers.
+
+Your criteria live in `config.local.yaml` under `job_hunt:` (see
+`config.local.example.yaml`): pay floor, locations, kinds of work, schedule,
+deal-breakers, and how many leads to keep.
+
+Coming next: the report read to you in the morning, "tailor my resume for
+3", "dismiss 2", "I applied to 1", and the hunt running automatically
+overnight.
+
 ## 7. The dashboard
 
 - **Header:** Akane's name, her current state (idle, listening, thinking,

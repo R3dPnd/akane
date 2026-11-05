@@ -213,3 +213,12 @@ def test_runtime_folds_the_user_block_into_prompts(runtime_on_path):
     from shared.user_context import build_user_prompt
 
     assert "Tacoma, WA" in build_user_prompt({"location": "Tacoma, WA"})
+
+
+def test_local_example_documents_job_hunt():
+    text = LOCAL_EXAMPLE.read_text()
+    assert "# job_hunt:" in text and "pay_floor_hourly" in text
+
+
+def test_job_search_base_url_configured(config):
+    assert config["job_search"]["base_url"] == "http://localhost:8080/api/v1"

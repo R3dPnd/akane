@@ -55,6 +55,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     stop.set_defaults(run=lambda args: commands.cmd_stop())
 
+    hunt = subparsers.add_parser("hunt", help="run a job hunt now and write the morning report")
+    hunt.set_defaults(run=lambda args: commands.cmd_hunt())
+
     jobs = subparsers.add_parser("jobs-app", help="run the pnd-job-search app as a background service")
     jobs.add_argument("action", choices=["install", "uninstall", "status", "load-resume"])
     jobs.add_argument("resume", nargs="?", help="path to a .docx (load-resume only)")

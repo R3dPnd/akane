@@ -28,3 +28,19 @@
 # rather than in config.yaml. Location lets "near me" questions skip asking.
 # user:
 #   location: Tacoma, WA
+
+# Overnight job hunt (`akane hunt`; see docs/user-guide.md). Personal, so it
+# lives here. Kinds JSearch's job boards don't carry (AI code evaluation,
+# code review, bounties) are found by a Claude web search instead.
+# job_hunt:
+#   pay_floor_hourly: 25
+#   locations: [Remote, "Tacoma, WA", "Seattle, WA"]
+#   kinds: [part-time SWE, AI code evaluation/training, freelance, code review, bounties]
+#   schedule: >
+#     Async first, in short bursts (waiting on AI, in transit). Early mornings best.
+#     Mon-Thu commuting Tacoma->Seattle: no fixed daytime commitments those days.
+#     Fridays flexible: in-person or scheduled work OK.
+#   exclude: [fixed Mon-Thu daytime hours, on-call, in-office Mon-Thu, full-time]
+#   max_leads: 8
+#   max_queries: 6
+#   run_at: "04:00"

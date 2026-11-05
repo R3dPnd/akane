@@ -275,3 +275,27 @@ class TestJobsApp:
     def test_load_resume_needs_a_path(self, capsys):
         assert commands.cmd_jobs_app("load-resume") == 2
         assert "usage" in capsys.readouterr().out
+
+
+class TestHunt:
+    def test_hunt_runs_the_runtime_module_with_the_persona_config(self, monkeypatch):
+        import subprocess
+
+        calls = []
+
+        def run(argv, **kw):
+            calls.append((argv, kw))
+            return subprocess.CompletedProcess(argv, 0)
+
+        monkeypatch.setattr(commands.subprocess, "run", run)
+        assert commands.cmd_hunt() == 0
+        ((argv, kw),) = calls
+        assert argv == [str(paths.VENV_BIN / "python"), "-m", "integrations.job_search", "hunt"]
+        assert kw["cwd"] == str(paths.RUNTIME_DIR)
+        assert kw["env"]["PND_CONFIG_PATH"] == str(paths.CONFIG_PATH)
+
+    def test_hunt_returns_the_hunts_exit_code(self, monkeypatch):
+        import subprocess
+
+        monkeypatch.setattr(commands.subprocess, "run", lambda argv, **kw: subprocess.CompletedProcess(argv, 3))
+        assert commands.cmd_hunt() == 3
