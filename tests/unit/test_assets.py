@@ -45,7 +45,9 @@ def test_router_modelfile():
     # qwen3:8b, chosen by the user after qwen2.5:7b proved unreliable at
     # calling tools (it would claim "I've set a reminder" without calling one).
     assert "FROM qwen3:8b" in text
-    assert "PARAMETER num_ctx 8192" in text
+    # 16K: a long chat with Claude's latest answer whole, digests of older
+    # ones, and ~1.5K tokens of tool schemas measured at ~8.3K tokens.
+    assert "PARAMETER num_ctx 16384" in text
     assert "Akane" in text
 
 

@@ -15,8 +15,10 @@
 FROM qwen3:8b
 
 # Ollama defaults to a 2048-token window, which the AGENTS section + tool
-# schemas + history outgrow; 8192 leaves room for Phase 3's notebook tools.
-PARAMETER num_ctx 8192
+# schemas + history outgrow. A long chat (Claude's latest answer whole, key
+# lines of older ones, ~1.5K tokens of tool schemas) measured ~8.3K tokens, so
+# 8192 silently dropped its start. 16384 costs ~1.2 GB more memory (KV cache).
+PARAMETER num_ctx 16384
 
 # Modest determinism boost for tool selection.
 PARAMETER top_p 0.8
