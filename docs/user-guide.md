@@ -173,9 +173,15 @@ akane jobs-app status                           # running? healthy? JSearch key 
 akane jobs-app uninstall                        # stop the background service
 ```
 
-The app needs PostgreSQL (`brew services start postgresql@16`), and a
-**JSearch** key from RapidAPI in `~/Git/r3dpnd/pnd-job-search/.env` as
-`JOBS_API_KEY=…`. Without the key, Akane still finds gig work but no
+The app needs PostgreSQL (`brew services start postgresql@16`) and a
+**JSearch** key in `~/Git/r3dpnd/pnd-job-search/.env`:
+
+- A key from **OpenWeb Ninja** (openwebninja.com, the one you have):
+  `JOBS_API_KEY=…` and `JOBS_API_HOST=api.openwebninja.com/jsearch`.
+- A key from **RapidAPI**: `JOBS_API_KEY=…`, with `JOBS_API_HOST` left at its
+  default (`jsearch.p.rapidapi.com`).
+
+Run `akane jobs-app install` again after changing `.env`. Without the key, Akane still finds gig work but no
 job-board postings, and the report says so.
 
 **Run a hunt:**
