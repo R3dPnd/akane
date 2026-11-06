@@ -1,0 +1,312 @@
+# Akane — persona config for the pnd-mcp runtime (runtime/).
+#
+# Tracked on purpose: this file *is* Akane, and holds no secrets. Anything
+# specific to one machine (a bigger Ollama model, Whisper size, audio devices,
+# a pnd-notes clone somewhere else) goes in config.local.yaml, which is merged
+# over this file — see config.local.example.yaml.
+#
+# Every runtime process runs with cwd=runtime/, so every relative path below
+# is relative to runtime/ — `../models/...` is this repo's models/ dir.
+
+persona:
+  name: Akane
+  wake_phrase: "ok Akane"
+  data_dir: ~/.akane
+  api_port: 8000
+  ui_port: 3000
+  theme: rose            # dashboard colours (runtime/ui/src/theme.css)
+
+audio:
+  sample_rate: 16000
+  channels: 1
+  input_device: null   # null = default mic
+  output_device: null  # null = default speaker
+  silence_timeout_ms: 1500   # stop recording after this much silence
+  max_record_ms: 15000       # max recording length
+  silence_threshold: 0.01    # RMS below this = silence
+  min_speech_rms: 0.005      # whole-recording RMS below this = discard silently
+
+wake_word:
+  # "ok Akane", said uh-KANE. Trained by scripts/train_wakeword.sh from
+  # wakeword/phrases.yaml; copy models/ok_akane.onnx between machines.
+  engine: openwakeword
+  model: ../models/ok_akane.onnx
+  threshold: 0.7
+  debounce: 4
+  cooldown_ms: 2000
+
+stt:
+  engine: faster_whisper
+  model_size: small         # tiny, base, small, medium, large-v3-turbo
+  language: en
+  device: auto
+  compute_type: int8
+
+ollama:
+  base_url: http://localhost:11434
+  model: akane-router   # built from models/akane-router.Modelfile by scripts/build_router.sh
+  system_prompt: |
+    You are Akane, a warm, thoughtful voice assistant and thinking partner.
+    Speak like a person talking, not a document: one or two short sentences,
+    then stop. Never use markdown, lists, code formatting, or emoji.
+
+    For every request, pick the single best-fit agent from the AGENTS list
+    (appended below at startup from config.yaml's `agents:` section) and
+    either answer yourself (the "local" agent) or call that agent's tool(s).
+
+    Rules:
+    - Never call a tool for conversational filler ("ok", "thanks", "sounds
+      good"). DO call a tool whenever the user asks you to do, open, look up,
+      remind, or find something — even phrased casually.
+    - If a question needs current or factual information you aren't sure of
+      (opening hours, prices, news, weather), use web_search rather than
+      guessing.
+    - After any tool call, speak the result naturally in 1-2 sentences.
+      When you saved something, say so and where ("saved that as a reminder").
+    - Never call the same tool twice in one turn.
+    - You can't add calendar events yet; if asked, say that's coming soon.
+    - If you can't give the full answer yourself in a sentence or two (a plan,
+      a schedule, a comparison, anything needing research), call think_deeply
+      right away. Never promise a plan or answer you haven't produced, and
+      never tell the user to look it up themselves.
+    - When the user asks to find jobs, read the morning report, or dismiss,
+      apply to or update a lead, call the tool immediately. Never ask
+      "would you like me to…?" for these.
+  # Low on purpose: at 0.7 the 7B router often skipped the tool call and still
+  # said it had acted ("I've set a reminder"). 0.1 measured far more reliable.
+  temperature: 0.1
+  max_tokens: 80
+  keep_alive: 30m   # keep the router resident between wake words
+
+tts:
+  engine: piper
+  voice_model: ../models/piper/en_GB-alba-medium   # downloaded by scripts/setup.sh
+  speed: 1.0
+
+agents:
+  # Routing targets, compiled into the AGENTS section of the system prompt
+  # (runtime/shared/agents_config.py). `tools` are MCP tool names; omit for
+  # "local". enabled: false keeps an agent out of routing — later phases of
+  # docs/superpowers/specs/2026-10-26-akane-design.md switch these on.
+  - name: local
+    description: >
+      Greetings, small talk, confirmations, thinking out loud, and simple
+      facts you're confident about — anything that needs a sentence or two
+      and no lookup.
+    enabled: true
+
+  - name: lookup
+    tools: [web_search]
+    description: >
+      Quick factual web lookups answered right now: opening hours, prices,
+      weather, news, "who/what/when is ...". Not for deep research.
+    enabled: true
+
+  - name: apps
+    tools: [open_app, get_volume, set_volume]
+    description: >
+      The Mac itself: open an app by name ("open Spotify"), or check or set
+      the volume ("volume to 30").
+    enabled: true
+
+  - name: reminders
+    tools: [add_reminder, list_reminders]
+    description: >
+      Add a reminder ("remind me to call the dentist tomorrow") or say what
+      reminders are coming up.
+    enabled: true
+
+  - name: recall
+    tools: [list_areas, search_notes, get_note]
+    description: >
+      The user's own curated knowledge base (pnd-notes): "what do my notes
+      say about X", "what do I know about Y". Search first, then read the
+      best match.
+    enabled: true
+
+  - name: jobs
+    tools: [get_morning_report, get_lead, dismiss_lead, mark_applied, update_application, start_hunt]
+    description: >
+      The job hunt: "find me jobs" (start_hunt), "read my morning report",
+      "what was number 3?" (get_lead), "dismiss 2", "I applied to 1"
+      (mark_applied), "Acme rejected me" / "I'm interviewing with Acme"
+      (update_application). Numbers are the latest morning report's.
+    enabled: true
+
+  # ── Later phases ──────────────────────────────────────────────────────────
+  - name: think        # Phase 3: notebook topic logs
+    description: "Talking something through; saves decisions, open questions and next steps to the topic's notebook."
+    enabled: false
+
+  - name: research     # Phase 3: background Claude job, announced when done
+    description: "Researches a topic in the background and saves a sourced write-up."
+    enabled: false
+
+  - name: plan         # Phase 3: background Claude job, announced when done
+    description: "Turns a goal or project idea into an action plan saved to the notebook."
+    enabled: false
+
+  - name: deep_think
+    tools: [think_deeply]
+    description: >
+      Anything that needs real work rather than a sentence or two: plans and
+      schedules (a degree plan, a study plan, a project plan), comparisons,
+      researched or multi-step answers, or when the user says "ask Claude",
+      "think harder", "show me the plan". Claude works on it in the
+      background; the answer is posted in this chat and announced.
+    enabled: true
+
+  - name: plan_day     # Phase 3 (calendar in 3d)
+    description: "Plans the day from reminders, open threads, and (later) the calendar."
+    enabled: false
+
+  - name: apply        # Phase 3b: resume + cover letter tailoring
+    description: "Tailors the resume and a cover letter to a copied job posting."
+    enabled: false
+
+  - name: claude_code
+    description: "Coding sessions in a project via Claude Code (projects module)."
+    module: projects
+    enabled: false
+
+  - name: devteam
+    description: "Background multi-phase Claude Code pipelines."
+    module: devteam
+    enabled: false
+
+  - name: godot        # Phase 4
+    description: "Godot game development — scripts, scenes, nodes, and the editor."
+    module: godot
+    enabled: false
+
+  - name: gardening
+    description: "Garden log — plantings, harvests, and care notes."
+    module: gardening
+    enabled: false
+
+  - name: bjj
+    description: "BJJ training log — sessions, techniques, and notes."
+    module: bjj
+    enabled: false
+
+focus_areas:
+  # The dashboard's typed chat runs in streams bound to a focus area, so
+  # Akane needs at least one. Notebook topics (Phase 3) replace this idea.
+  - name: general
+    description: "Anything — planning, thinking out loud, questions, the day ahead."
+    enabled: true
+
+mcp:
+  servers:
+    # always_on servers each have a `tools` allowlist: it keeps the 7B router's
+    # tool list short, and keeps names unique (pnd-mcp's notes_server and
+    # pnd-notes both define search_notes).
+    - name: claude
+      command: ../.venv/bin/python
+      args: ["-m", "integrations.servers.claude_server"]
+      description: "Web lookups and think_deeply through the claude CLI (subscription, no API key)"
+      always_on: true
+      tools: [web_search, think_deeply]
+
+    - name: reminders
+      command: ../.venv/bin/python
+      args: ["-m", "integrations.servers.notes_server"]
+      description: "Reminders, stored locally in ~/.akane"
+      always_on: true
+      tools: [add_reminder, list_reminders]
+
+    - name: system
+      command: ../.venv/bin/python
+      args: ["-m", "integrations.servers.system_server"]
+      description: "Open apps and set the volume (lock_screen waits for spoken confirmation, Phase 3)"
+      always_on: true
+      tools: [open_app, get_volume, set_volume]
+
+    - name: pnd_notes
+      command: node
+      args: ["../../pnd-notes/server/pnd-notes.mjs"]   # pnd-notes cloned next to akane
+      description: "The user's curated knowledge base — read-only"
+      always_on: true
+      tools: [list_areas, search_notes, get_note]
+
+    - name: job_search
+      command: ../.venv/bin/python
+      args: ["-m", "integrations.servers.job_search_server"]
+      description: "Job hunt follow-ups over pnd-job-search: morning report, leads, applications"
+      always_on: true
+      env:
+        PND_JOB_SEARCH_URL: http://localhost:8080/api/v1
+      tools: [get_morning_report, get_lead, dismiss_lead, mark_applied, update_application, start_hunt]
+
+    - name: schedule
+      command: ../.venv/bin/python
+      args: ["-m", "integrations.servers.schedule_server"]
+      description: "Google Calendar — not connected yet (Phase 3d)"
+      always_on: false
+
+    - name: projects
+      command: ../.venv/bin/python
+      args: ["-m", "integrations.servers.claude_code_server"]
+      description: "Project discovery and Claude Code sessions"
+      always_on: false
+
+    - name: devteam
+      command: ../.venv/bin/python
+      args: ["-m", "integrations.servers.devteam_server"]
+      description: "Background multi-phase Claude Code pipelines"
+      always_on: false
+
+    - name: gardening
+      command: ../.venv/bin/python
+      args: ["-m", "integrations.servers.gardening_server"]
+      description: "Garden log, stored locally"
+      always_on: false
+
+    - name: bjj
+      command: ../.venv/bin/python
+      args: ["-m", "integrations.servers.bjj_server"]
+      description: "BJJ training log, stored locally"
+      always_on: false
+
+    - name: godot
+      command: node
+      args: ["../../godot-mcp/server/build/index.js"]   # godot-mcp cloned next to akane
+      description: "Godot editor — scripts, scenes, nodes, editor errors (Phase 4)"
+      always_on: false
+      tools:
+        - get_project_info
+        - get_filesystem_tree
+        - get_scene_tree
+        - create_scene
+        - open_scene
+        - save_scene
+        - add_node
+        - delete_node
+        - update_property
+        - get_node_properties
+        - rename_node
+        - list_scripts
+        - read_script
+        - create_script
+        - edit_script
+        - attach_script
+        - validate_script
+        - search_in_files
+        - get_editor_errors
+        - get_output_log
+      follow_up:
+        create_script: [get_editor_errors]
+        edit_script: [get_editor_errors]
+        attach_script: [get_editor_errors]
+
+job_search:
+  # pnd-job-search (the user's job-hunting app), run by `akane jobs-app install`.
+  base_url: http://localhost:8080/api/v1
+  app_dir: ../../pnd-job-search   # relative to runtime/, like every path here
+
+ux:
+  play_listening_sound: true
+  play_thinking_sound: false
+  # Read replies to typed chat aloud too (needs `akane dev --voice`). They
+  # wait until Akane is idle, so they never talk over a spoken conversation.
+  speak_typed_replies: true
