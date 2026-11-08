@@ -81,6 +81,10 @@ def build_parser() -> argparse.ArgumentParser:
     jobs.add_argument("resume", nargs="?", help="path to a .docx (load-resume only)")
     jobs.set_defaults(run=lambda args: commands.cmd_jobs_app(args.action, resume=args.resume))
 
+    remote = subparsers.add_parser("remote", help="use Akane's dashboard from your other devices (via Tailscale)")
+    remote.add_argument("action", choices=["on", "off", "status"])
+    remote.set_defaults(run=lambda args: commands.cmd_remote(args.action))
+
     restart = subparsers.add_parser("restart", help="stop and relaunch with the same mode/flags")
     restart.set_defaults(run=lambda args: commands.cmd_restart(relaunch=relaunch))
 

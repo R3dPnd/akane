@@ -66,7 +66,7 @@ def spawn_api(voice: bool, capture_output: bool = True, speak: bool = False) -> 
     command = [
         str(paths.VENV_UVICORN),
         "app.main:app",
-        "--host", "0.0.0.0",
+        "--host", "127.0.0.1",  # never the open network; `akane remote on` for other devices
         "--port", str(paths.API_PORT),
     ]
     output = {**_CAPTURED, "stderr": subprocess.PIPE} if capture_output else {}

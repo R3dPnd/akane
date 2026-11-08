@@ -86,6 +86,11 @@ options (e.g. `dev --speak`), so you don't have to retype them. You can also
 restart from the dashboard's restart button, or by saying "restart Akane" /
 "restart yourself".
 
+### `akane remote on|off|status`
+
+Use Akane's dashboard from your other computers, at home or away. See
+[Using Akane from another computer](#7b-using-akane-from-another-computer).
+
 ### `akane --help`
 
 Lists the commands. `akane <command> --help` shows a command's options.
@@ -257,6 +262,40 @@ Coming next: "tailor my resume for 3".
 - **Logs** (bottom bar): live events, useful when something seems off.
 
 The rose color theme comes from `persona.theme: rose` in `config.yaml`.
+
+## 7b. Using Akane from another computer
+
+Akane's API only listens to this Mac (`127.0.0.1`), so nobody else on your
+Wi-Fi can reach her. To use her from your other devices, from anywhere, she
+goes through **Tailscale**: a free private network between your own devices.
+Nothing is opened on your router, and only devices signed in to your
+Tailscale account can connect.
+
+One-time setup:
+
+1. Install Tailscale on this Mac and on the other computer
+   (`brew install --cask tailscale`, or tailscale.com/download), open it, and
+   sign in to the **same account** on both.
+2. In the Tailscale admin console (login.tailscale.com → DNS), turn on
+   **MagicDNS** and **HTTPS certificates**. `tailscale serve` needs both.
+3. On this Mac: `akane remote on`. It builds the dashboard if it's out of
+   date and prints an address like `https://your-mac.tailXXXX.ts.net/`.
+4. Open that address in a browser on the other computer.
+
+```bash
+akane remote on       # publish Akane on your tailnet (survives restarts)
+akane remote status   # what's being served, and where
+akane remote off      # stop
+```
+
+Notes:
+
+- The address works while Akane is running on this Mac (and the Mac is awake).
+- Everything the dashboard can do works remotely, including the terminal
+  pane, which is a shell on this Mac. Keep your Tailscale account secure
+  (it's the key to this).
+- Read-aloud plays on **this** Mac's speakers, not the remote computer's.
+- After changing the UI code, run `akane remote on` again to rebuild it.
 
 ---
 

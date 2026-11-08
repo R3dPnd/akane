@@ -188,6 +188,13 @@ def cmd_hunt() -> int:
     return result.returncode
 
 
+def cmd_remote(action: str) -> int:
+    """`akane remote <action>`: Akane's dashboard on your other devices via Tailscale."""
+    from launcher import remote
+
+    return {"on": remote.cmd_on, "off": remote.cmd_off, "status": remote.cmd_status}[action]()
+
+
 def cmd_schedule(action: str) -> int:
     """`akane schedule <action>`: manage the nightly job-hunt launchd job."""
     from launcher import schedule
