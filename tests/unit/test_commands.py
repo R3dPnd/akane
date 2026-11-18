@@ -308,3 +308,12 @@ def test_schedule_actions_dispatch(monkeypatch):
     monkeypatch.setattr(schedule, "cmd_uninstall", lambda: 8)
     monkeypatch.setattr(schedule, "cmd_status", lambda: 9)
     assert [commands.cmd_schedule(a) for a in ("install", "uninstall", "status")] == [7, 8, 9]
+
+
+def test_remote_actions_dispatch(monkeypatch):
+    from launcher import remote
+
+    monkeypatch.setattr(remote, "cmd_on", lambda: 4)
+    monkeypatch.setattr(remote, "cmd_off", lambda: 5)
+    monkeypatch.setattr(remote, "cmd_status", lambda: 6)
+    assert [commands.cmd_remote(a) for a in ("on", "off", "status")] == [4, 5, 6]

@@ -76,7 +76,7 @@ class TestSpawnApi:
         processes.spawn_api(voice=False)
 
         (call,) = popen_calls
-        assert call["cmd"] == [str(paths.VENV_UVICORN), "app.main:app", "--host", "0.0.0.0", "--port", str(paths.API_PORT)]
+        assert call["cmd"] == [str(paths.VENV_UVICORN), "app.main:app", "--host", "127.0.0.1", "--port", str(paths.API_PORT)]
         assert call["cwd"] == str(paths.RUNTIME_DIR)
         assert call["env"]["NO_VOICE"] == "1"
 
